@@ -21,7 +21,6 @@ import re
 import time
 import datetime
 import os.path
-import socket
 import json
 import urllib2
 import sys
@@ -46,7 +45,7 @@ def update_settings():
     if 'log_loc' not in settings:
         settings['log_loc'] = tempdir
     if 'db_engine' not in settings:
-        settings = 'sqlite:///{0}/test.db'.format(tempdir)
+        settings['db_engine'] = 'sqlite:///{0}/test.db'.format(tempdir)
     yaml.dump(file(yaml_file))
     return settings
 
@@ -392,6 +391,7 @@ def unsubscribe_message(mailto, cyear, subs):
     msg['Reply-To'] = mail_from.replace('students.medschool.pitt.edu', 'navidile.mine.nu')
     send_out(mail_from, [mailto], msg)
 
+
 def send_out(mail_from, relayto, msg):
     worked = False
     smtp_url = s.query(NavidileSettings).get('email_srv_addr').value
@@ -404,7 +404,6 @@ def send_out(mail_from, relayto, msg):
     except smtplib.SMTPException:
         logger.warn('SMTP exception',  exc_info=1)
     return worked
-
 
 
 def get_subscribed_alerts(subs):
@@ -540,7 +539,7 @@ def update_navidile_player(course, task):
                 .format(navidile_player_path, course.cyear, course.name, rec.idno)
             s.commit()
 
-    navidile_link = '{0}\{1}-all-lr.html'.format(navidile_player_path , course.cyear)
+    navidile_link = '{0}\{1}-all-lr.html'.format(navidile_player_path, course.cyear)
     last_rec_url = navidile_link
     next_rec_url = navidile_link
     last_rec = None
@@ -599,7 +598,7 @@ def make_navidile_player(course, rec, last_rec_url, next_rec_url, task):
     data = data.replace('%SLIDEBASEURL%', slidebaseurl).replace('%MP3URL%', rec.podcast_url).replace('%REFS%',
                                                                                                      repr(refs))
     data = data.replace('%RECDATE%', rec.rec_date.isoformat())
-    data = data.replace('%MAINDIR%', s.query(NavidileSettings).get('navidile_player_path')+'navidile_player').value
+    data = data.replace('%MAINDIR%', s.query(NavidileSettings).get('navidile_player_path').value+'navidile_player')
     data = data.replace('%TITLE%', rec.name)
     data = data.replace('%COURSETITLE%', rec.course_name)
     data = data.replace('%LASTPRESENTATION%', last_rec_url)
