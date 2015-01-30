@@ -463,11 +463,11 @@ def update_course_db(_):
                 if ncourse['endDate']:
                     course.end_date = datetime.datetime.strptime(ncourse['endDate'], '%Y-%m-%dT%H:%M:%S.%f00')
                 # disable autoadding of courses:
-                if len(s.query(Course).filter(Course.cyear == course.cyear,
+                if not ncourse['isPlaceholder'] and len(s.query(Course).filter(Course.cyear == course.cyear,
                                               Course.course_id == course.course_id).all()) == 0:
-                    # s.add(course)
-                    # s.commit()
-                    pass
+                    s.add(course)
+                    s.commit()
+
     s.commit()
 
 
