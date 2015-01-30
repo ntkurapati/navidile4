@@ -418,8 +418,8 @@ def get_subscribed_alerts(subs):
 
 def s_update_course_db(_):
     logger.info('looking for new courses...')
-    opener = nav4api.build_opener(username=s.query(NavidileSettings).get('username').value,
-                                  password=s.query(NavidileSettings).get('password').value)
+    opener = nav4api.build_opener(username=s.query(NavidileSettings).get('nav4_api_username').value,
+                                  password=s.query(NavidileSettings).get('nav4_api_password').value)
     current_year = datetime.datetime.now().year
     for year in range(current_year - 1, current_year + 2):
         ncourses = nav4api.courses_by_academic_year(year, opener)
@@ -712,8 +712,8 @@ def check_for_doc_updates(course):
     foldername = "None"
     course.last_error = ""
     try:
-        opener = nav4api.build_opener(username=s.query(NavidileSettings).get('username').value,
-                                      password=s.query(NavidileSettings).get('password').value)
+        opener = nav4api.build_opener(username=s.query(NavidileSettings).get('nav4_api_username').value,
+                                      password=s.query(NavidileSettings).get('nav4_api_password').value)
         course_folders = nav4api.course_folders(course.course_id, opener)
         for folder in course_folders:
             folder_obj = s.query(Folder).get(folder['folderID'])
@@ -744,8 +744,8 @@ def check_for_doc_updates(course):
 # get all the calendar events + recordings, and add them to calendar
 def check_for_cal_updates(course):
     foldername = "none"
-    opener = nav4api.build_opener(username=s.query(NavidileSettings).get('username').value,
-                                  password=s.query(NavidileSettings).get('password').value)
+    opener = nav4api.build_opener(username=s.query(NavidileSettings).get('nav4_api_username').value,
+                                  password=s.query(NavidileSettings).get('nav4_api_password').value)
     calitems = []
     cal_index = 1
     prev_recording_event = None
