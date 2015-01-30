@@ -395,7 +395,7 @@ def unsubscribe_message(mailto, cyear, subs):
 def send_out(mail_from, relayto, msg):
     worked = False
     smtp_url = s.query(NavidileSettings).get('email_srv_addr').value
-    port = s.query(NavidileSettings).get('email_srv_port').value
+    port = int(s.query(NavidileSettings).get('email_srv_port').value)
     try:
         server1 = smtplib.SMTP(smtp_url, port)
         server1.sendmail(mail_from, relayto, msg.as_string())
