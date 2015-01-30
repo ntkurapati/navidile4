@@ -39,6 +39,8 @@ import servertools
 def update_settings():
     # update settings from yaml file
     global settings
+    global hostname
+    hostname = socket.gethostname()
 
     yaml_file = 'navidile_settings.yml'
     path = os.path.dirname(os.path.abspath(__file__))
@@ -69,7 +71,6 @@ def update_settings():
 # setup database stuff
 yamlfile = 'navidile.yml'
 update_settings()
-hostname = socket.gethostname()
 if 'db_engine' in settings[hostname]:
     db_engine = settings[hostname]['db_engine']
 else:
