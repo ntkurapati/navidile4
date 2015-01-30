@@ -15,7 +15,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from email.mime.text import MIMEText
 
-#default libraries
+# default libraries
 import imaplib
 import urllib
 import re
@@ -30,11 +30,12 @@ import email
 import sys
 import logging
 
-#local imports
+# local imports
 import ms_maker
 import nav4api
+import servertools
 
-
+yamlfile = 'navidile.yml'
 hostname = socket.gethostname()
 
 
@@ -69,21 +70,10 @@ def update_settings():
 
 
 # setup database stuff
-
-
-yamlfile = 'navidile.yml'
-update_settings()
-import servertools
-
-
 if 'db_engine' in settings[hostname]:
     db_engine = settings[hostname]['db_engine']
 else:
     raise Exception("I don't know where to to go for the database!")
-
-
-# start the scheduler
-schedule = sched.scheduler(time.time, time.sleep)
 
 
 # set up the logger
@@ -125,33 +115,33 @@ def main(_):
             if not task.last_ran or (task.last_ran + datetime.timedelta(
                     seconds=task.run_interval)) < datetime.datetime.now() or task.force_run:
                 if task.name == "update_webpages":
-                    update_webpages(task)
+                    s_update_webpages(task)
                 elif task.name == "update_calendars":
-                    update_calendars(task)
+                    s_update_calendars(task)
                 elif task.name == "update_subscribers":
-                    update_subscribers(task)
+                    s_update_subscribers(task)
                 elif task.name == "update_navidile_players":
-                    update_navidile_players(task)
+                    s_update_navidile_players(task)
                 elif task.name == "update_mediasite_sched":
-                    update_mediasite_sched(task)
+                    s_update_mediasite_sched(task)
                 elif task.name == "update_course_docs":
-                    update_course_docs(task)
+                    s_update_course_docs(task)
                 elif task.name == "update_course_db":
-                    update_course_db(task)
+                    s_update_course_db(task)
                 elif task.name == "update_recordings":
-                    update_recordings(task)
+                    s_update_recordings(task)
                 elif task.name == "redundancy_check":
-                    redundancy_check(task)
+                    s_redundancy_check(task)
                 elif task.name == "update_everything":
-                    update_calendars(task)
-                    update_subscribers(task)
+                    s_update_calendars(task)
+                    s_update_subscribers(task)
                     # update_subscriptions(task)
-                    update_navidile_players(task)
-                    update_mediasite_sched(task)
-                    update_course_docs(task)
-                    update_course_db(task)
-                    update_recordings(task)
-                    redundancy_check(task)
+                    s_update_navidile_players(task)
+                    s_update_mediasite_sched(task)
+                    s_update_course_docs(task)
+                    s_update_course_db(task)
+                    s_update_recordings(task)
+                    s_redundancy_check(task)
                 task.last_ran = datetime.datetime.now()
                 if task.force_run:
                     task.force_run = False
@@ -167,6 +157,7 @@ def remove_non_ascii(line):
     return output.replace(u'\u2013', '-').replace(u'\u2019', '').replace(u'\u2014', '')
 
 
+# update class calendar
 def update_calendar(ms_class):
     logger.info('Updating  Calendar for {0}:'.format(ms_class.cyear))
     # retrieve relevant calendar items from database
@@ -244,7 +235,7 @@ def update_calendar(ms_class):
 
 
 # look for possible database redundancies
-def redundancy_check(_):
+def s_redundancy_check(_):
     logger.info('looking for unrecorded lectures or missing podcasts...')
     # find orphaned recordings and add them to existing courses
     for recording in s.query(Recording).filter(Recording.course_uid == None).all():
@@ -426,12 +417,10 @@ def get_subscribed_alerts(subs):
         output.append('Course Docs')
     if 'r' in subs:
         output.append('Lecture recordings')
-    if 'b' in subs:
-        output.append('Course Blogs')
     return ', '.join(output)
 
 
-def update_course_db(_):
+def s_update_course_db(_):
     logger.info('looking for new courses...')
     opener = nav4api.build_opener(settings=settings)
     current_year = datetime.datetime.now().year
@@ -458,7 +447,7 @@ def update_course_db(_):
 
 
 # update courses
-def update_course_docs(task):
+def s_update_course_docs(task):
     logger.info('updating course documents...')
     # only get courses with valid urls
     for course in s.query(Course).filter(Course.navigator_url != None).all():
@@ -480,7 +469,7 @@ def update_course_docs(task):
             check_for_doc_updates(course)
 
 
-def update_mediasite_sched(task):
+def s_update_mediasite_sched(task):
     logger.info('generating mediasite schedule...')
     for ms_class in s.query(MSClass).all():
         items = []
@@ -497,7 +486,7 @@ def update_mediasite_sched(task):
         generate_mediasite_schedule_class(items, ms_class)
 
 
-def update_recordings(task):
+def s_update_recordings(task):
     logger.info('checking mediasite for new recordings...')
     for course in s.query(Course).filter(Course.mediasite_url != None).all():
         count = len(
@@ -506,7 +495,7 @@ def update_recordings(task):
             check_for_new_recordings(course)
 
 
-def update_navidile_players(task):
+def s_update_navidile_players(task):
     task.last_report = ""
     logger.info('updating navidile players...')
     courses = s.query(Course).filter(Course.podcast_url != None).all()
@@ -519,13 +508,13 @@ def update_navidile_players(task):
             update_navidile_player(course, task)
 
 
-def update_webpages(_):
+def s_update_webpages(_):
     logger.info('updating webpages...')
     for msclass in s.query(MSClass).all():
         construct_html_pagevids_all(msclass)
 
 
-def update_calendars(_):
+def s_update_calendars(_):
     logger.info('updating calendar...')
     for msclass in s.query(MSClass).all():
         update_calendar(msclass)
@@ -533,7 +522,7 @@ def update_calendars(_):
     update_zone_calendar()
 
 
-def update_subscribers(task):
+def s_update_subscribers(task):
     logger.info('sending out emails..')
     subscribers = s.query(Subscriber).all()
     for subscriber in subscribers:
@@ -699,19 +688,19 @@ def check_for_new_recordings(course):
             rec = Recording(idno1, name=remove_non_ascii(item["title"]), mediasite_url=item["link"], course=course,
                             pub_date="")
         rec.rec_date = datetime.datetime.fromtimestamp(time.mktime(item.published_parsed))
-        sr = s.query(ScheduledRecording).filter(ScheduledRecording.l0name == rec.name,
-                                                ScheduledRecording.course_name == course.name).first()
-        if not sr:
-            sr = s.query(ScheduledRecording).filter(ScheduledRecording.lecture_name == rec.name,
-                                                    ScheduledRecording.course_name == course.name).first()
-        if not sr:
-            sr = s.query(ScheduledRecording).filter(ScheduledRecording.lecture_name == rec.name).first()
+        sched_recs = s.query(ScheduledRecording).filter(ScheduledRecording.l0name == rec.name,
+                                                        ScheduledRecording.course_name == course.name).first()
+        if not sched_recs:
+            sched_recs = s.query(ScheduledRecording).filter(ScheduledRecording.lecture_name == rec.name,
+                                                            ScheduledRecording.course_name == course.name).first()
+        if not sched_recs:
+            sched_recs = s.query(ScheduledRecording).filter(ScheduledRecording.lecture_name == rec.name).first()
         folder = None
-        if sr:
-            sr.recorded = True
-            rec.presenters = sr.presenters
-            s.add(sr)
-            folder = s.query(Folder).get(sr.folderID)
+        if sched_recs:
+            sched_recs.recorded = True
+            rec.presenters = sched_recs.presenters
+            s.add(sched_recs)
+            folder = s.query(Folder).get(sched_recs.folderID)
         if not folder:
             folder = s.query(Folder).filter(Folder.startDate == rec.rec_date).filter(
                 Folder.course == course.name).filter(Folder.cyear == rec.cyear).first()
@@ -886,9 +875,6 @@ def generate_mediasite_schedule_class(cal_items1, msclass):
             elif not a.combined_with_another and overlap < datetime.timedelta(
                     minutes=2) and last.mediasite_fldr != a.mediasite_fldr:
                 last.cut_short = True
-                new_sched.append(a)
-            else:
-                new_sched.append(a)
             s.add(a)
             s.commit()
 
@@ -1391,7 +1377,6 @@ class ScheduledRecording(Base):
 
 
 Base.metadata.create_all(engine)
-
 Session = sessionmaker(bind=engine)
 s = Session()
 
