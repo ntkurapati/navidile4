@@ -1357,7 +1357,7 @@ class ScheduledRecording(Base):
         return result
 
     def combine(self, item2):
-        self.lecture_name = "%s; %s" % (self.lecture_name, item2.lname)
+        self.lecture_name = "%s; %s" % (self.lecture_name, item2.lecture_name)
         self.l0name = "%s; %s" % (self.l0name, item2.l0name)
         # combine presenters
         if not item2.presenters:
@@ -1375,7 +1375,7 @@ class ScheduledRecording(Base):
         self.end_date = item2.end_date
 
     def combine_as_same(self, item2):
-        self.lecture_name = "%s; %s" % (self.lecture_name, item2.lname)
+        self.lecture_name = "%s; %s" % (self.lecture_name, item2.lecture_name)
         self.l0name = "L%02d: %s" % (self.lec_id, self.lecture_name)
         item2p = set(item2.presenters.split('; '))
         selfp = set(self.presenters.split('; ')) | item2p
