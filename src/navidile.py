@@ -592,13 +592,9 @@ def update_mediasite_sched(task):
 def update_recordings(task):
     logger.info('checking mediasite for new recordings...')
     for course in s.query(Course).filter(Course.mediasite_url != None).all():
-
         count = len(
             s.query(Recording).filter(Recording.course_name == course.name, Recording.cyear == course.cyear).all())
-        print count
-        print course.name
-        if 'ALL COURSES' not in course.name and (
-                        course.keep_updated or count == 0 or settings[hostname]['force_update_all']):
+        if 'ALL COURSES' not in course.name and (course.keep_updated or count == 0):
             check_for_new_recordings(course)
 
 
@@ -1494,7 +1490,7 @@ class CalendarItem(Base):
 
 
 class NavidileTask(Base):
-    __tablename__ = 'navidile_tasks'
+    __tablename__ = 'aa_navidile_tasks'
 
     name = Column(String(225), nullable=False, primary_key=True)
     run_interval = Column(Integer, nullable=False)
@@ -1503,6 +1499,7 @@ class NavidileTask(Base):
     last_report = Column(Text, nullable=True)
     selected_only = Column(Boolean, nullable=False)
     force_run = Column(Boolean, nullable=False)
+
 
     def __init__(self, idno, name, start_time, end_time, course):
         self.idno = idno
