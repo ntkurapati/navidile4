@@ -9,13 +9,12 @@
 import yaml
 import feedparser
 from BeautifulSoup import BeautifulSoup
-import mechanize
 import icalendar
 import pytz
 from sqlalchemy import *
 
 from sqlalchemy.ext.declarative import declarative_base
-#from sqlalchemy.orm import relation, sessionmaker
+# from sqlalchemy.orm import relation, sessionmaker
 from sqlalchemy.orm import sessionmaker
 
 # internal libraries
@@ -263,14 +262,14 @@ def redundancy_check(_):
     for ms_class in s.query(MSClass).all():
         # check for recordings that didn't appear to have recorded
         possible_failed_recordings = s.query(ScheduledRecording).filter(
-            ScheduledRecording.recorded is False,
-            ScheduledRecording.excluded is False,
+            ScheduledRecording.recorded == False,
+            ScheduledRecording.excluded == False,
             ScheduledRecording.end_date < (
                 datetime.datetime.now() - datetime.timedelta(minutes=60)),
             ScheduledRecording.end_date > (
                 datetime.datetime.now() - datetime.timedelta(days=3)),
             ScheduledRecording.cyear == ms_class.cyear,
-            ScheduledRecording.notified_unrecorded is False).all()
+            ScheduledRecording.notified_unrecorded == False).all()
         if possible_failed_recordings:
             warning_txt = ('Hi, the following lecture(s) did not appear to  record:',)
             for missing_podcast in possible_failed_recordings:
@@ -286,13 +285,13 @@ def redundancy_check(_):
 
         # look for expected recordings that haven't been scheduled
         possible_unscheduled_recordings = s.query(ScheduledRecording).filter(
-            ScheduledRecording.scheduled is False,
-            ScheduledRecording.excluded is False,
+            ScheduledRecording.scheduled == False,
+            ScheduledRecording.excluded == False,
             ScheduledRecording.start_date < (
                 datetime.datetime.now() - datetime.timedelta(days=4)),
             ScheduledRecording.start_date > datetime.datetime.now(),
             ScheduledRecording.cyear == ms_class.cyear,
-            ScheduledRecording.notified_unscheduled is False).all()
+            ScheduledRecording.notified_unscheduled == False).all()
 
         if possible_unscheduled_recordings:
             warning_txt = ('Hi, the following lecture(s) have not been scheduled:',)
@@ -308,7 +307,7 @@ def redundancy_check(_):
         # look for mediasite that don't have podcasts
         missing_podcasts = s.query(Recording).filter(
             Recording.podcast_url == "",
-            Recording.notified_no_podcast is False,
+            Recording.notified_no_podcast == False,
             Recording.cyear == ms_class.cyear,
             Recording.date_added < (datetime.datetime.now() - datetime.timedelta(minutes=7 * 60))).all()
 
@@ -940,8 +939,8 @@ def generate_mediasite_schedule_class(cal_items1, msclass):
 
 
 def construct_docs_message(messagelines, updateddocs, subscriber):
-    messagelines.append( "Navidile found these documents updated on Navigator.  "
-        "Make sure you are logged in to Navigator <http://navigator.medschool.pitt.edu> to access them. \n")
+    messagelines.append("Navidile found these documents updated on Navigator.  "
+                        "Make sure you are logged in to Navigator <http://navigator.medschool.pitt.edu> to access them. \n")
     lastfolder = ""
     for doc in updateddocs:
         if lastfolder != doc.folder_name:
@@ -953,7 +952,7 @@ def construct_docs_message(messagelines, updateddocs, subscriber):
                                              doc.full_url,
                                              doc.date_added))
     messagelines.append(("\nTo unsubscribe to this alert, reply to this email with 'unsubscribe' in"
-         " the message. Your last update was at {0}.").format(subscriber.last_update))
+                         " the message. Your last update was at {0}.").format(subscriber.last_update))
 
 
 def construct_vids_message(messagelines, updatedrecordings, subscriber):
@@ -973,7 +972,7 @@ def construct_html_pagevids_all(msclass):
     if msclass.notice:
         lines.append('<p>%s</p>' % msclass.notice)
     for course in s.query(Course).filter(Course.cyear == msclass.cyear).filter(
-        Course.start_date < datetime.datetime.now()).order_by(desc(Course.start_date)).all():
+                    Course.start_date < datetime.datetime.now()).order_by(desc(Course.start_date)).all():
 
         lines.append('<h3>%s<br>%s</h3>\n' % (course.name, get_info_line(course)))
 
@@ -1327,7 +1326,7 @@ class ScheduledRecording(Base):
         self.auto_number = calitem.auto_number
         self.mediasite_fldr = calitem.mediasite_fldr
 
-        self.lecture_name = remove_non_ascii(calitem.name)\
+        self.lecture_name = remove_non_ascii(calitem.name) \
             .replace("Lecture: ", "").replace("Lecture ", "L").replace("  ", " ")
         self.l0name = "L%02d: %s" % (
             self.lec_id, calitem.name.replace("Lecture: ", "").replace("Lecture ", "").replace("  ", " "))
