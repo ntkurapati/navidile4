@@ -204,7 +204,7 @@ def update_calendar(ms_class):
             event.add('priority', 5)
             cal.add_component(event)
         cal_string = cal.to_ical().replace(';VALUE=DATE', '').replace('-TIME', '')
-    local_cal_url=s.query(NavidileSettings).get('local_cal_url')
+    local_cal_url = s.query(NavidileSettings).get('local_cal_url').value
     file_name = os.path.join(local_cal_url, str(ms_class.cyear) + '_navi.ics')
     if not os.path.exists(local_cal_url):
         os.makedirs(local_cal_url)
@@ -296,7 +296,7 @@ def s_redundancy_check(_):
 def update_zone_calendar():
     logger.info('Updating Zone Calendar:')
     try:
-        rss_url = s.query(NavidileSettings).get('zone_cal_rss')
+        rss_url = s.query(NavidileSettings).get('zone_cal_rss').value
         feed = feedparser.parse(rss_url)
 
         # parse through items
@@ -358,7 +358,7 @@ def update_zone_calendar():
             event.add('PRIORITY', 5)
             cal.add_component(event)
 
-        ics_file = os.path.join(s.query(NavidileSettings).get('local_cal_url'), 'zone.ics')
+        ics_file = os.path.join(s.query(NavidileSettings).get('local_cal_url').value, 'zone.ics')
         f = open(ics_file, 'wb')
         f.write(cal.to_ical())
         f.close()
@@ -394,8 +394,8 @@ def unsubscribe_message(mailto, cyear, subs):
 
 def send_out(mail_from, relayto, msg):
     worked = False
-    smtp_url = s.query(NavidileSettings).get('email_srv_addr')
-    port = s.query(NavidileSettings).get('email_srv_port')
+    smtp_url = s.query(NavidileSettings).get('email_srv_addr').value
+    port = s.query(NavidileSettings).get('email_srv_port').value
     try:
         server1 = smtplib.SMTP(smtp_url, port)
         server1.sendmail(mail_from, relayto, msg.as_string())
@@ -418,8 +418,8 @@ def get_subscribed_alerts(subs):
 
 def s_update_course_db(_):
     logger.info('looking for new courses...')
-    opener = nav4api.build_opener(username=s.query(NavidileSettings).get('username'),
-                                  password=s.query(NavidileSettings).get('password'))
+    opener = nav4api.build_opener(username=s.query(NavidileSettings).get('username').value,
+                                  password=s.query(NavidileSettings).get('password').value)
     current_year = datetime.datetime.now().year
     for year in range(current_year - 1, current_year + 2):
         ncourses = nav4api.courses_by_academic_year(year, opener)
@@ -528,7 +528,7 @@ def s_update_subscribers(task):
 
 def update_navidile_player(course, task):
     feed = feedparser.parse(course.podcast_url)
-    navidile_player_path = s.query(NavidileSettings).get('navidile_player_path');
+    navidile_player_path = s.query(NavidileSettings).get('navidile_player_path').value
     for item in feed["items"]:
         mp3_url = item['link']
         # idno = mp3_url.split('/')[-1].replace('.mp3', '').replace('-', '');
@@ -564,7 +564,7 @@ def make_navidile_player(course, rec, last_rec_url, next_rec_url, task):
     if not rec.podcast_url or rec.podcast_url == "":
         return
 
-    filedir = os.path.join(s.query(NavidileSettings).get('local_navidile_url'),
+    filedir = os.path.join(s.query(NavidileSettings).get('local_navidile_url').value,
                            'navidile_player', str(course.cyear), course.name)
     if not os.path.exists(filedir):
         os.makedirs(filedir)
@@ -599,7 +599,7 @@ def make_navidile_player(course, rec, last_rec_url, next_rec_url, task):
     data = data.replace('%SLIDEBASEURL%', slidebaseurl).replace('%MP3URL%', rec.podcast_url).replace('%REFS%',
                                                                                                      repr(refs))
     data = data.replace('%RECDATE%', rec.rec_date.isoformat())
-    data = data.replace('%MAINDIR%', s.query(NavidileSettings).get('navidile_player_path')+'navidile_player')
+    data = data.replace('%MAINDIR%', s.query(NavidileSettings).get('navidile_player_path')+'navidile_player').value
     data = data.replace('%TITLE%', rec.name)
     data = data.replace('%COURSETITLE%', rec.course_name)
     data = data.replace('%LASTPRESENTATION%', last_rec_url)
@@ -712,8 +712,8 @@ def check_for_doc_updates(course):
     foldername = "None"
     course.last_error = ""
     try:
-        opener = nav4api.build_opener(username=s.query(NavidileSettings).get('username'),
-                                      password=s.query(NavidileSettings).get('password'))
+        opener = nav4api.build_opener(username=s.query(NavidileSettings).get('username').value,
+                                      password=s.query(NavidileSettings).get('password').value)
         course_folders = nav4api.course_folders(course.course_id, opener)
         for folder in course_folders:
             folder_obj = s.query(Folder).get(folder['folderID'])
@@ -744,8 +744,8 @@ def check_for_doc_updates(course):
 # get all the calendar events + recordings, and add them to calendar
 def check_for_cal_updates(course):
     foldername = "none"
-    opener = nav4api.build_opener(username=s.query(NavidileSettings).get('username'),
-                                  password=s.query(NavidileSettings).get('password'))
+    opener = nav4api.build_opener(username=s.query(NavidileSettings).get('username').value,
+                                  password=s.query(NavidileSettings).get('password').value)
     calitems = []
     cal_index = 1
     prev_recording_event = None
@@ -877,7 +877,7 @@ def generate_mediasite_schedule_class(cal_items1, msclass):
             s.add(a)
             s.commit()
 
-    local_ms_cal_url = s.query(NavidileSettings).get('local_ms_cal_url')
+    local_ms_cal_url = s.query(NavidileSettings).get('local_ms_cal_url').value
     if not os.path.exists(local_ms_cal_url):
         os.makedirs(local_ms_cal_url)
 
@@ -966,7 +966,7 @@ def construct_html_pagevids_all(msclass):
     lines.append('<p>Last updated: %s</p>\n' % datetime.datetime.now().strftime('%c'))
     lines.append('</body>')
     fullhtml = ''.join(lines)
-    htmlloc = os.path.join(s.query(NavidileSettings).get('local_navidile_url'), '%s-all-lr.html' % msclass.cyear)
+    htmlloc = os.path.join(s.query(NavidileSettings).get('local_navidile_url').value, '%s-all-lr.html' % msclass.cyear)
     try:
         file1 = open(htmlloc, 'w')
         file1.write(fullhtml)
