@@ -446,28 +446,19 @@ def update_course_db(_):
         for ncourse in ncourses:
             ncourse['displayName'] = ncourse['displayName'].strip()
             cyears = ncourse['curriculumYears']
-            if len(cyears) == 1 and ncourse['displayName'] and ncourse['startDate'] and not ncourse['isPlaceholder']:
-                cyear = cyears[0]
-                course = s.query(Course).get(ncourse['displayName'])
-                if not course:
-                    course = Course(ncourse['displayName'], cyear, course_id=ncourse['moduleID'], auto_number=False,
-                                    keep_updated=False)
-                if not course.course_id and not course.navigator_url:
-                    course.course_id = ncourse['moduleID']
-                    course.navigator_url = ("http://navigator.medschool.pitt.edu/"
-                                            "CourseOverview.aspx?moduleID={0}").format(course.course_id)
-                if not course.rec_exclude:
-                    course.rec_exclude = '["Small Group", "Exam", "PBL", "Independent"]'
-                if ncourse['startDate']:
-                    course.start_date = datetime.datetime.strptime(ncourse['startDate'], '%Y-%m-%dT%H:%M:%S.%f00')
-                if ncourse['endDate']:
-                    course.end_date = datetime.datetime.strptime(ncourse['endDate'], '%Y-%m-%dT%H:%M:%S.%f00')
-                # disable autoadding of courses:
-                if not ncourse['isPlaceholder'] and len(s.query(Course).filter(Course.cyear == course.cyear,
-                                              Course.course_id == course.course_id).all()) == 0:
+            for cyear in cyears:
+                if ncourse['startDate'] and not ncourse['isPlaceholder']:
+                    course = s.query(Course).filter(Course.course_id == ncourse['moduleID']).filter(Course.cyear == cyear).first()
+                    if not course:
+                        course = Course(ncourse['displayName'], cyear, course_id=ncourse['moduleID'], auto_number=False,
+                                        keep_updated=True)
+                        course.mediasite_url_auto = "auto_added"
+                    if not course.start_date and ncourse['startDate']:
+                        course.start_date = datetime.datetime.strptime(ncourse['startDate'], '%Y-%m-%dT%H:%M:%S.%f00')
+                    if not course.end_date and ncourse['endDate']:
+                        course.end_date = datetime.datetime.strptime(ncourse['endDate'], '%Y-%m-%dT%H:%M:%S.%f00')
                     s.add(course)
                     s.commit()
-
     s.commit()
 
 
@@ -1091,7 +1082,11 @@ class Course(Base):
         self.end_date = None
         self.course_id = course_id
         self.unique_id = '-'.join((str(cyear), str(course_id)))
-
+        if course_id and not navigator_url:
+            self.navigator_url = ("http://navigator.medschool.pitt.edu/"
+                                  "CourseOverview.aspx?moduleID={0}").format(course_id)
+        if not rec_exclude:
+            self.rec_exclude = '["Small Group", "Exam", "PBL", "Independent"]'
         self.do_reset = False
 
 
