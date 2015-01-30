@@ -76,7 +76,7 @@ def update_settings():
 
 
 # setup database stuff
-Base = declarative_base()
+
 
 yamlfile = 'navidile.yml'
 update_settings()
@@ -272,30 +272,32 @@ def redundancy_check(_):
                                                   ScheduledRecording.notified_unrecorded == False).all()
         if possible_failed_recordings:
             warning_txt = ('Hi, the following lecture(s) did not appear to  record:',)
-            for u in possible_failed_recordings:
-                warning_txt += (u.l0name,)
-                u.notified_unrecorded = True
+            for missing_podcast in possible_failed_recordings:
+                warning_txt += (missing_podcast.l0name,)
+                missing_podcast.notified_unrecorded = True
 
                 s.commit()
-            warning_txt += "Please ignore if they weren't supposed to be recorded! Or maybe they went into the wrong course???  Fix in phpmyadmin!",
+            warning_txt += ("Please ignore if they weren't supposed to be recorded!"
+                            " Or maybe they went into the wrong course???  Fix in phpmyadmin!")
             warning = NavidileWarning('Missing recording?', '\n'.join(warning_txt), ms_class.cyear)
             s.add(warning)
             s.commit()
 
         # look for expected recordings that haven't been scheduled
-        possible_unscheduled_recordings = s.query(ScheduledRecording).filter(ScheduledRecording.scheduled == False,
-                                                  ScheduledRecording.excluded == False,
-                                                  ScheduledRecording.start_date < (
-                                                      datetime.datetime.now() - datetime.timedelta(days=4)),
-                                                  ScheduledRecording.start_date > datetime.datetime.now(),
-                                                  ScheduledRecording.cyear == ms_class.cyear,
-                                                  ScheduledRecording.notified_unscheduled == False).all()
+        possible_unscheduled_recordings = s.query(ScheduledRecording).filter(
+            ScheduledRecording.scheduled == False,
+            ScheduledRecording.excluded == False,
+            ScheduledRecording.start_date < (
+                datetime.datetime.now() - datetime.timedelta(days=4)),
+            ScheduledRecording.start_date > datetime.datetime.now(),
+            ScheduledRecording.cyear == ms_class.cyear,
+            ScheduledRecording.notified_unscheduled == False).all()
 
         if possible_unscheduled_recordings:
             warning_txt = ('Hi, the following lecture(s) have not been scheduled:',)
-            for u in possible_unscheduled_recordings:
-                warning_txt += u.l0name,
-                u.notified_unscheduled = True
+            for missing_podcast in possible_unscheduled_recordings:
+                warning_txt += missing_podcast.l0name,
+                missing_podcast.notified_unscheduled = True
                 s.commit()
             warning_txt += "Please ignore if they aren't supposed to be recorded!",
             warning = NavidileWarning('Missing podcast?', '\n'.join(warning_txt), ms_class.cyear, tonotify=False)
@@ -303,18 +305,18 @@ def redundancy_check(_):
             s.commit()
 
         # look for mediasite that don't have podcasts
-        missing_podcasts = s.query(Recording).filter(Recording.podcast_url == "",
-                                       Recording.notified_no_podcast == False,
-                                       Recording.cyear == ms_class.cyear,
-                                       Recording.date_added < (
-                                           datetime.datetime.now() - datetime.timedelta(minutes=7 * 60))).all()
+        missing_podcasts = s.query(Recording).filter(
+            Recording.podcast_url == "",
+            Recording.notified_no_podcast == False,
+            Recording.cyear == ms_class.cyear,
+            Recording.date_added < (datetime.datetime.now() - datetime.timedelta(minutes=7 * 60))).all()
 
         if missing_podcasts:
             warning_txt = ("I couldn't find the podcast for the following lecture(s)",)
-            for u in missing_podcasts:
-                warning_txt += u.name,
+            for missing_podcast in missing_podcasts:
+                warning_txt += missing_podcast.name,
                 s.commit()
-                u.notified_no_podcast = True
+                missing_podcast.notified_no_podcast = True
             warning_txt += 'Have you checked if the rss feed is set to more than 10 items? ' \
                            ' Is the podcast server still running?'
             warning = NavidileWarning('Missing podcast?', '\n'.join(warning_txt), ms_class.cyear)
@@ -414,13 +416,13 @@ def unsubscribe_message(mailto, cyear, subs):
     alerts = get_subscribed_alerts(subs)
     email_text = ("You have unsubscribed to these Navidile email alert: %s."
                   "  Reply to this message to resubscribe to this alert at any time.") % alerts
-    mailfrom = 'alerts' + cyear + '+' + subs + '@students.medschool.pitt.edu'
+    mail_from = 'alerts' + cyear + '+' + subs + '@students.medschool.pitt.edu'
     msg = MIMEText(email_text)
     msg['Subject'] = "Navidile Subscription: %s" % alerts
-    msg['From'] = mailfrom
+    msg['From'] = mail_from
     msg['To'] = mailto
-    msg['Reply-To'] = mailfrom.replace('students.medschool.pitt.edu', 'navidile.mine.nu')
-    servertools.send_out(mailfrom, [mailto], msg, settings)
+    msg['Reply-To'] = mail_from.replace('students.medschool.pitt.edu', 'navidile.mine.nu')
+    servertools.send_out(mail_from, [mailto], msg, settings)
 
 
 def get_subscribed_alerts(subs):
@@ -452,49 +454,20 @@ def update_course_db(_):
                                     keep_updated=False)
                 if not course.course_id and not course.navigator_url:
                     course.course_id = ncourse['moduleID']
-                    course.navigator_url = "http://navigator.medschool.pitt.edu/CourseOverview.aspx?moduleID={0}".format(
-                        course.course_id)
+                    course.navigator_url = ("http://navigator.medschool.pitt.edu/"
+                                            "CourseOverview.aspx?moduleID={0}").format(course.course_id)
                 if not course.rec_exclude:
                     course.rec_exclude = '["Small Group", "Exam", "PBL", "Independent"]'
                 if ncourse['startDate']:
                     course.start_date = datetime.datetime.strptime(ncourse['startDate'], '%Y-%m-%dT%H:%M:%S.%f00')
                 if ncourse['endDate']:
                     course.end_date = datetime.datetime.strptime(ncourse['endDate'], '%Y-%m-%dT%H:%M:%S.%f00')
-                    #disable autoadding of courses:
+                # disable autoadding of courses:
                 if len(s.query(Course).filter(Course.cyear == course.cyear,
                                               Course.course_id == course.course_id).all()) == 0:
-                    #s.add(course)
-                    #s.commit()
+                    # s.add(course)
+                    # s.commit()
                     pass
-
-    """
-            if ncourse['displayName'] and ncourse['startDate'] and  datetime.datetime.strptime(ncourse['startDate'], '%Y-%m-%dT%H:%M:%S.%f00') >datetime.datetime.now():
-                course = s.query(Course).get(ncourse['displayName'])
-                if not course:
-                    course = Course(ncourse['displayName'],  "UNK", course_id=ncourse['moduleID'] , auto_number=False, keep_updated=False)
-                course.course_id=ncourse['moduleID']
-                if ncourse['startDate']:
-                    course.start_date =datetime.datetime.strptime(ncourse['startDate'], '%Y-%m-%dT%H:%M:%S.%f00') 
-                if ncourse['endDate']:
-                    course.end_date = datetime.datetime.strptime(ncourse['endDate'], '%Y-%m-%dT%H:%M:%S.%f00') 
-    
-                
-                if course.cyear == "UNK":
-                    m1 = re.match('\\((\\d+)\\)',course.name)
-                    if m1:
-                        name_only= m1.group(1)
-                        academic_year = int(m1.group(2))
-                        
-                        prev_year_course = s.query(Course).filter(Course.name == " {0} ({1})".format(name_only, academic_year-1))
-                        if prev_year_course:
-                            course.cyear = prev_year_course.cyear+1
-                            s.add(course)
-                        later_year_course = s.query(Course).filter(Course.name == " {0} ({1})".format(name_only, academic_year+1))
-                        if later_year_course:
-                            course.cyear = prev_year_course.cyear-1
-     
-                        s.add(course)
-            """
     s.commit()
 
 
@@ -509,10 +482,11 @@ def update_course_docs(task):
             s.commit()
         # fix mediasite url and mediasite id
         if not course.mediasite_id and course.mediasite_url:
-            course.mediasite_id = course.mediasite_url.split("=")[-1]
+            course.mediasite_id = str(course.mediasite_url).split("=")[-1]
             s.commit()
         if course.mediasite_id and not course.mediasite_url:
-            course.mediasite_url = "http://mediasite.medschool.pitt.edu/som_mediasite/Catalog/pages/rss.aspx?catalogId=" + course.mediasite_id
+            course.mediasite_url = ("http://mediasite.medschool.pitt.edu"
+                                    "/som_mediasite/Catalog/pages/rss.aspx?catalogId=") + course.mediasite_id
             s.commit()
 
         if 'ALL COURSES' not in course.name and (not task.selected_only or course.keep_updated):
@@ -524,7 +498,6 @@ def update_mediasite_sched(task):
         items = []
         for course in s.query(Course).filter(Course.cyear == ms_class.cyear).all():
             if course.do_reset:
-                pass;
                 course.do_reset = False
                 s.query(CalendarItem).filter(CalendarItem.mediasite_fldr == course.mediasite_fldr).delete()
                 s.query(ScheduledRecording).filter(ScheduledRecording.mediasite_fldr == course.mediasite_fldr).delete()
@@ -533,8 +506,7 @@ def update_mediasite_sched(task):
                 current_items = check_for_cal_updates(course)
                 for item in current_items:
                     items.append(item)
-                    #logger.info('{0} calendar event(s) for {1}...'.format(len(items), course.name))
-        generate_mediasite_schedule_class(items, ms_class);
+        generate_mediasite_schedule_class(items, ms_class)
 
 
 def update_recordings(task):
@@ -542,7 +514,7 @@ def update_recordings(task):
     for course in s.query(Course).filter(Course.mediasite_url != None).all():
         count = len(
             s.query(Recording).filter(Recording.course_name == course.name, Recording.cyear == course.cyear).all())
-        if 'ALL COURSES' not in course.name and (course.keep_updated or count == 0 or task.force_run ):
+        if 'ALL COURSES' not in course.name and (course.keep_updated or count == 0 or task.force_run):
             check_for_new_recordings(course)
 
 
@@ -559,139 +531,16 @@ def update_navidile_players(task):
             update_navidile_player(course, task)
 
 
-def update_webpages(task):
+def update_webpages(_):
     logger.info('updating pages...')
     for msclass in s.query(MSClass).all():
         construct_html_pagevids_all(msclass)
 
 
-def update_calendars(task):
+def update_calendars(_):
     for msclass in s.query(MSClass).all():
         update_calendar(msclass)
     update_zone_calendar()
-
-
-def update_subscriptions(reschedule=True):
-    logger.info('updating subscriptions...')
-    if not all(k in settings[hostname] for k in ('email_in_username', 'email_in_server', 'email_in_password')):
-        logging.warn('not checking requests!')
-        return
-    username = settings[hostname]['email_in_username']
-    imaphost = settings[hostname]['email_in_server']
-    password = settings[hostname]['email_in_password']
-    try:
-
-        server = imaplib.IMAP4_SSL(imaphost)
-        server.login(username, password)
-
-        # get all unprocessed messages
-        server.select("INBOX.Navidile")
-        items = server.search(None, "UNSEEN")[1]
-        items = items[0].split()
-
-        # fetch messages and send them to the script
-        itemnum = len(items)
-
-        logger.info('found {0} msgs'.format(itemnum))
-        for i in items:
-            data = server.fetch(i, "(RFC822)")[1]
-            text = data[0][1].replace('\r', '')
-            email_msg = email.message_from_string(text)
-            processed = process_request(email_msg['From'], [email_msg['To']], email_msg)
-            #subscriber_request_queue.put()
-            #server.store(md, '+FLAGS', '\\Deleted')
-
-    except:
-        logger.error('Error', exc_info=1)
-
-
-def process_request(mailfrom, rcpttos, email_msg):
-    processed = False
-    try:
-
-        Base.metadata.create_all(engine)
-
-        Session = sessionmaker(bind=engine)
-        s = Session()
-        #while not subscriber_request_queue.empty():
-        #   item=subscriber_request_queue.get()
-
-        mailto1 = rcpttos[0]
-        mailto = mailto1.split('@')[0]
-
-        logger.info("mailto {0} ".format(mailto))
-        txt = mailto
-
-        re1 = '(alerts)'  # Word 1
-        re2 = '(\d{4})'  # Integer Number 1
-        re3 = '([\\+\\-])'  # Any Single Character 1
-        re4 = '(\w+)'  # Any Single Character 2
-
-        rg = re.compile(re1 + re2 + re3 + re4, re.IGNORECASE | re.DOTALL)
-        m = rg.match(txt)
-        if 'forceupdate' in mailto1:
-            update_mediasite_sched(reschedule=False)
-            outmailfrom = 'navidile@students.medschool.pitt.edu'
-            msg = MIMEText(
-                "okay, I updated the schedules... Go look here: http://students.medschool.pitt.edu/cal -Navidile")
-            msg['Subject'] = "Navidile Force Update"
-            msg['From'] = 'navidile@students.medschool.pitt.edu'
-            msg['Reply-To'] = outmailfrom.replace('students.medschool.pitt.edu', 'navidile.mine.nu')
-            msg['To'] = mailfrom
-            servertools.send_out(outmailfrom, [mailfrom], msg, settings)
-            #return
-            processed = True
-
-        if m:
-            #word1=m.group(1)
-            cyear = m.group(2)
-            c1 = m.group(3)
-            subs = m.group(4)
-
-            logger.info("request {0} {1} {2}".format(mailfrom, cyear, subs))
-            if c1 == '+':
-                sub1 = s.query(Subscriber).get(mailfrom)
-                if not sub1:
-                    sub1 = Subscriber(mailfrom, cyear, subs)
-                else:
-                    sub1.subscriptions += subs;
-                s.add(sub1)
-                s.commit()
-                subscribe_message(mailfrom, cyear, subs)
-            if c1 == '-':
-                sub1 = s.query(Subscriber).get(mailfrom)
-                if not sub1:
-                    sub1 = Subscriber(mailfrom, cyear, subs)
-                else:
-                    for s in subs:
-                        sub1.subscriptions = sub1.subscriptions.replace(s, '')
-                s.add(sub1)
-                s.commit()
-                unsubscribe_message(mailfrom, cyear, subs)
-            processed = True
-        if mailfrom == 'ntkurapati@gmail.com' and mailto == 'stopnavidile':
-            sys.exit()
-
-        subject = email_msg['Subject']
-        if 'Invitation to a Mediasite presentation: ' in subject:
-            logger.info("confirmed scheduling of  {0} ".format(subject))
-            subject = subject.replace('Invitation to a Mediasite presentation: ', '')
-            recording = s.query(ScheduledRecording).filter(ScheduledRecording.lname == subject).first()
-            if not recording:
-                recording = s.query(ScheduledRecording).filter(ScheduledRecording.l0name == subject).first()
-            if recording:
-                recording.scheduled = True
-                s.commit()
-
-            processed = True
-
-
-
-            #dbntools.storemsg(item.mailfrom, item.rcpttos[0], item.data, cyear, dblocation)
-            #subscriber_request_queue.task_done()
-    except TypeError:
-        logger.warn('TypeError', exc_info=1)
-    return processed
 
 
 def update_subscribers(task):
@@ -704,17 +553,15 @@ def update_navidile_player(course, task):
     feed = feedparser.parse(course.podcast_url)
     for item in feed["items"]:
         mp3_url = item['link']
-        #idno = mp3_url.split('/')[-1].replace('.mp3', '').replace('-', '');
+        # idno = mp3_url.split('/')[-1].replace('.mp3', '').replace('-', '');
         idno = mp3_url.split('/')[-2]
         rec = s.query(Recording).get((idno, course.unique_id))
         if rec:
             rec.podcast_url = mp3_url
             rec.navidile_url = "{0}/{1}/{2}/{3}.html".format(settings[hostname]['host_loc'], course.cyear, course.name,
                                                              rec.idno)
-
             s.commit()
-            #else:
-            #task.last_report+=(removeNonAscii('Podcast but no video for {0} in course {1}'.format(item["title"], course.name)))
+
     navidile_link = settings[hostname]['host_loc'].replace('navidile_player', '{0}-all-lr.html'.format(course.cyear))
     last_rec_url = navidile_link
     next_rec_url = settings[hostname]['host_loc'].replace('navidile_player', '{0}-all-lr.html'.format(course.cyear))
@@ -739,13 +586,11 @@ def update_navidile_player(course, task):
 
 def get_directory(filename):
     path = os.path.dirname(os.path.abspath(__file__))
-    fileAndPath = os.path.join(path, filename)
-    return fileAndPath
+    full_path = os.path.join(path, filename)
+    return full_path
 
 
 def make_navidile_player(course, rec, last_rec_url, next_rec_url, task):
-    #mp3_url, idno, course ,title
-
     if not rec.podcast_url or rec.podcast_url == "":
         return
 
@@ -761,9 +606,7 @@ def make_navidile_player(course, rec, last_rec_url, next_rec_url, task):
         rec.idno)
     refs = []
     slidebaseurl = ''
-
     try:
-
         imagerefs = re.findall(r'CreateSlide\("",(\d+),', urllib2.urlopen(scripturl).read())
         for i in imagerefs:
             refs.append(int(i))
@@ -777,13 +620,13 @@ def make_navidile_player(course, rec, last_rec_url, next_rec_url, task):
     except IOError, urllib2.HTTPError:
         logger.warn('IOError', exc_info=1)
     path = os.path.dirname(os.path.abspath(__file__))
-    playerTemplate = 'player_template.html'
-    playerTemplate = os.path.join(path, playerTemplate)
-    f = open(playerTemplate)
+    player_template = 'player_template.html'
+    player_template = os.path.join(path, player_template)
+    f = open(player_template)
     data = f.read()
     f.close()
     data = data.replace('%SLIDEBASEURL%', slidebaseurl).replace('%MP3URL%', rec.podcast_url).replace('%REFS%',
-                                                                                                     repr(refs));
+                                                                                                     repr(refs))
     data = data.replace('%RECDATE%', rec.rec_date.isoformat())
     data = data.replace('%MAINDIR%', settings[hostname]['host_loc'])
     data = data.replace('%TITLE%', rec.name)
@@ -795,39 +638,38 @@ def make_navidile_player(course, rec, last_rec_url, next_rec_url, task):
     else:
         data = data.replace('%PRESENTERS%', "Unknown")
     data = data.replace('%MEDIASITEPLAYERLINK%', rec.mediasite_url)
-    f = open(unicode(filename), 'w');
+    f = open(unicode(filename), 'w')
     f.write(remove_non_ascii(data))
-    f.close();
-    #servertools.upload_file(settings, filename,'navidile_player/'+str(course.cyear)+'/'+idno+'.html')
+    f.close()
 
 
-def update_subscriber(subscriber, task):
+def update_subscriber(subscriber, _):
     if 'r' in subscriber.subscriptions:
-        mailfrom = 'alerts%s-r@navidile.mine.nu' % subscriber.cyear
+        mail_from = 'alerts%s-r@navidile.mine.nu' % subscriber.cyear
         for course in s.query(Course).filter(Course.keep_updated == True).all():
             updatedrecs = s.query(Recording).filter(Recording.date_added > subscriber.last_update).filter(
                 Recording.course_name == course.name).filter(Recording.cyear == subscriber.cyear).all()
             if course.keep_updated and len(updatedrecs) > 0:
-                messagelines = []
-                construct_vids_message(messagelines, updatedrecs, subscriber)
-                send_out_update("\n".join(messagelines), mailfrom, subscriber,
-                                '[Navidile] %s: Recordings Added' % ( course.name))
+                message_lines = []
+                construct_vids_message(message_lines, updatedrecs, subscriber)
+                send_out_update("\n".join(message_lines), mail_from, subscriber,
+                                '[Navidile] %s: Recordings Added' % course.name)
     if 'c' in subscriber.subscriptions:
-        mailfrom = 'alerts%s-c@navidile.mine.nu' % subscriber.cyear
+        mail_from = 'alerts%s-c@navidile.mine.nu' % subscriber.cyear
         for course in s.query(Course).all():
 
             updateddocs = s.query(Document).filter(Document.date_added > subscriber.last_update).filter(
                 Document.course_name == course.name).filter(Document.cyear == subscriber.cyear).all()
             if course.keep_updated and len(updateddocs) > 0:
-                messagelines = []
-                construct_docs_message(messagelines, updateddocs, subscriber)
-                send_out_update("\n".join(messagelines), mailfrom, subscriber,
-                                '[Navidile] %s: Documents Added' % ( course.name))
+                message_lines = []
+                construct_docs_message(message_lines, updateddocs, subscriber)
+                send_out_update("\n".join(message_lines), mail_from, subscriber,
+                                '[Navidile] %s: Documents Added' % course.name)
     if 'w' in subscriber.subscriptions:
-        mailfrom = 'alerts%s-w@navidile.mine.nu' % subscriber.cyear
+        mail_from = 'alerts%s-w@navidile.mine.nu' % subscriber.cyear
         for warning in s.query(NavidileWarning).filter(NavidileWarning.cyear == subscriber.cyear,
                                                        NavidileWarning.date_added > subscriber.last_update).all():
-            send_out_update(warning.warning, mailfrom, subscriber, '[Navidile]: %s' % ( warning.subject))
+            send_out_update(warning.warning, mail_from, subscriber, '[Navidile]: %s' % warning.subject)
     subscriber.last_update = datetime.datetime.now()
     s.add(subscriber)
     s.commit()
@@ -863,33 +705,27 @@ def check_for_new_recordings(course):
             course.mediasite_id)
         feed = feedparser.parse(newurl)
 
-    #rec_name_list=[]
-
     for item in feed["items"]:
-
-        #rec_name_list.append(item["title"])
+        # rec_name_list.append(item["title"])
         print item["title"]
         # get unique id no of video
         idno = item['link'].split('/')[-1]
         idno1 = remove_non_ascii(idno)
         print idno
-        #check if already in database
+        # check if already in database
         rec = s.query(Recording).get((idno1, course.unique_id))
 
         if not rec:
             rec = Recording(idno1, name=remove_non_ascii(item["title"]), mediasite_url=item["link"], course=course,
                             pub_date="")
         rec.rec_date = datetime.datetime.fromtimestamp(time.mktime(item.published_parsed))
-        #print item.published_parsed
-
-
         sr = s.query(ScheduledRecording).filter(ScheduledRecording.l0name == rec.name,
                                                 ScheduledRecording.course_name == course.name).first()
         if not sr:
-            sr = s.query(ScheduledRecording).filter(ScheduledRecording.lname == rec.name,
+            sr = s.query(ScheduledRecording).filter(ScheduledRecording.lecture_name == rec.name,
                                                     ScheduledRecording.course_name == course.name).first()
         if not sr:
-            sr = s.query(ScheduledRecording).filter(ScheduledRecording.lname == rec.name).first()
+            sr = s.query(ScheduledRecording).filter(ScheduledRecording.lecture_name == rec.name).first()
         folder = None
         if sr:
             sr.recorded = True
@@ -901,7 +737,6 @@ def check_for_new_recordings(course):
                 Folder.course == course.name).filter(Folder.cyear == rec.cyear).first()
         if folder:
             rec.folder_id = folder.folderID
-
         s.add(rec)
 
     s.commit()
@@ -910,9 +745,7 @@ def check_for_new_recordings(course):
 def check_for_doc_updates(course):
     foldername = "None"
     try:
-
         opener = nav4api.build_opener(settings=settings)
-
         course_folders = nav4api.course_folders(course.course_id, opener)
         for folder in course_folders:
             folder_obj = s.query(Folder).get(folder['folderID'])
@@ -931,40 +764,34 @@ def check_for_doc_updates(course):
                             doc_obj = s.query(Document).get(document['url'])
 
                             if not doc_obj:
-                                doc_obj = Document(folder, page, document, course)
+                                doc_obj = Document(folder, document, course)
                             s.add(doc_obj)
                             s.commit()
                     except KeyError:
                         pass
-
     except urllib2.HTTPError:
-        logger.warn('HTTPError in doc update course {0}, folder{1}:'.format(course.name, foldername), exc_info=1);
+        logger.warn('HTTPError in doc update course {0}, folder{1}:'.format(course.name, foldername), exc_info=1)
 
 
-        #get all the calendar events + recordings, and add them to calendar
-
-
+# get all the calendar events + recordings, and add them to calendar
 def check_for_cal_updates(course):
     foldername = "none"
     opener = nav4api.build_opener(settings=settings)
-    calitems = [];
-    i = 1
+    calitems = []
+    cal_index = 1
     prev_recording_event = None
     try:
         course_folders = nav4api.course_folders(course.course_id, opener)
         if len(course_folders) == 0:
-            logger.warn('No folders for : {0}'.format(course.name));
+            logger.warn('No folders for : {0}'.format(course.name))
         for folder in course_folders:
-            #print folder['displayName']
             if folder['displayName'] is None:
                 folder['displayName'] = 'Noname'
             foldername = folder['displayName']
             if 'virtualHomeFolder' not in folder['displayName']:
                 if len(course_folders) == 0:
-                    logger.warn('No pages for : {0}, {1}'.format(course.name, folder['folderID']));
+                    logger.warn('No pages for : {0}, {1}'.format(course.name, folder['folderID']))
                 for page in nav4api.folder_pages(course.course_id, folder['folderID'], opener):
-
-
                     name = page['displayName'].strip()
                     start_time = page['startTime']
                     end_time = page['endTime']
@@ -972,12 +799,12 @@ def check_for_cal_updates(course):
 
                     if start_time and end_time:
 
-                        ## First add/update the google calendar item
+                        # First add/update the google calendar item
                         ci = s.query(CalendarItem).get(id1)
                         if not ci:
                             ci = CalendarItem(id1, name, start_time, end_time, course)
 
-                        ci.lec_id = i;
+                        ci.lec_id = cal_index
                         ci.course_name = course.name
                         ci.cyear = course.cyear
                         ci.auto_number = course.auto_number
@@ -987,33 +814,29 @@ def check_for_cal_updates(course):
                         ci.presenters = remove_non_ascii(
                             re.sub('<[^>]*>', '', page['source']).replace('and ', '; ').replace('   ', ';').replace(
                                 '\n', ' '))
-
-
-                        #datetime.datetime.strptime('2012-05-17T00:00:00.0000000', '%Y-%m-%dT%H:%M:%S.%f00')
-
+                        # datetime.datetime.strptime('2012-05-17T00:00:00.0000000', '%Y-%m-%dT%H:%M:%S.%f00')
                         ci.start_date = datetime.datetime.strptime(start_time, '%Y-%m-%dT%H:%M:%S.%f00')
                         ci.end_date = datetime.datetime.strptime(end_time, '%Y-%m-%dT%H:%M:%S.%f00')
-
-                        #fix in case start date is after end date
+                        # fix in case start date is after end date
                         if ci.end_date < ci.start_date:
                             ci.start_date -= datetime.timedelta(minutes=720)
 
                         if not ci.presenters:
                             ci.presenters = "Mediasite Presenter"
-                            ## HOW TO FIX THIS???
+                            # HOW TO FIX THIS???
                         try:
                             excludes = json.loads(course.rec_exclude)
                         except ValueError:
                             logger.warn("Can't parse the excludes: {0}".format(course.rec_exclude), exc_info=1)
-                            excludes = ['l234242lkjl2jro2'];
+                            excludes = ['l234242lkjl2jro2']
 
                         if not excludes:
-                            excludes = ['l234242lkjl2jro2'];
+                            excludes = ['l234242lkjl2jro2']
                         exclude = False
-                        for text in excludes:
-                            if text in ci.name:
+                        for excluded_text in excludes:
+                            if excluded_text in ci.name:
                                 exclude = True
-                                break;
+                                break
                         ci.to_record = not exclude
 
                         s.add(ci)
@@ -1022,7 +845,7 @@ def check_for_cal_updates(course):
                         except sqlalchemy.exc.IntegrityError:
                             pass
 
-                            ## Then add a recording for the mediasite xml
+                            # Then add a recording for the mediasite xml
                         recording_event = s.query(ScheduledRecording).get(id1)
                         if not recording_event:
                             recording_event = ScheduledRecording(ci)
@@ -1031,48 +854,40 @@ def check_for_cal_updates(course):
                             recording_event.course_uid = course.unique_id
 
                         if not exclude and not recording_event.combined_with_another:
-                            #try:
-                            #    logger.info('Excluding by request: {0}'.format(recording_event.lname,).encode('utf-8'))
-                            #except UnicodeEncodeError:
-                            #    pass
-
-
                             # first check if there was a previous item (if not already combine)
                             if not prev_recording_event:
                                 prev_recording_event = recording_event
                                 calitems.append(recording_event)
-                                i = i + 1
+                                cal_index += 1
                             # otherwise, check if this one overlaps with the last one
                             elif abs(recording_event.start_date - prev_recording_event.start_date) < datetime.timedelta(
                                     seconds=60):
                                 try:
-                                    logger.info('Combining: {0} {1} {2} {3}'.format(recording_event.lname,
-                                                                                    prev_recording_event.lname,
+                                    logger.info('Combining: {0} {1} {2} {3}'.format(recording_event.lecture_name,
+                                                                                    prev_recording_event.lecture_name,
                                                                                     recording_event.start_date,
                                                                                     prev_recording_event.start_date))
                                 except UnicodeEncodeError:
                                     pass
                                 prev_recording_event.combine_as_same(recording_event)
-                            #if it doesn't overlap, just add as a separate item
+                            # if it doesn't overlap, just add as a separate item
                             else:
                                 prev_recording_event = recording_event
                                 calitems.append(recording_event)
-                                i = i + 1
+                                cal_index += 1
                         else:
                             recording_event.excluded = True
 
                         s.add(recording_event)
                         s.commit()
     except urllib2.HTTPError:
-        logger.warn('HTTPError in cal update course {0}, folder{1}:'.format(course.name, foldername), exc_info=1);
+        logger.warn('HTTPError in cal update course {0}, folder{1}:'.format(course.name, foldername), exc_info=1)
     return calitems
 
 
 def generate_mediasite_schedule_class(cal_items1, msclass):
     cal_items = sorted(cal_items1, key=lambda item: item.start_date)
-    new_sched = []
     if len(cal_items) > 0:
-
         new_sched = [cal_items.pop(0)]
         while len(cal_items) > 0:
             last = new_sched[-1]
@@ -1084,7 +899,7 @@ def generate_mediasite_schedule_class(cal_items1, msclass):
             # combine but don't add if comes right after another
             if overlap < datetime.timedelta(minutes=16) and last.mediasite_fldr == a.mediasite_fldr:
 
-                #don't combine if done already!
+                # don't combine if done already!
                 if not a.combined_with_another and last.excluded == a.excluded:
                     last.combine(a)
             elif not a.combined_with_another and overlap < datetime.timedelta(
@@ -1095,7 +910,6 @@ def generate_mediasite_schedule_class(cal_items1, msclass):
                 new_sched.append(a)
             s.add(a)
             s.commit()
-            #for a in new_sched:
 
     if not os.path.exists(settings[hostname]['ms_sched_location']):
         os.makedirs(settings[hostname]['ms_sched_location'])
@@ -1108,13 +922,13 @@ def generate_mediasite_schedule_class(cal_items1, msclass):
         .order_by(ScheduledRecording.start_date) \
         .all()
 
-    filename = "%s_combined.xml" % (msclass.cyear)
+    filename = "%s_combined.xml" % msclass.cyear
     filepath = os.path.join(settings[hostname]['ms_sched_location'], filename)
 
     ms_maker.make_xml(new_sched, filepath, recordername=msclass.recorder_name)
-    #servertools.upload_file(settings,filepath, "sched/"+filename )       
+    # servertools.upload_file(settings,filepath, "sched/"+filename )
 
-    filename = "%s_all_future.xml" % (msclass.cyear)
+    filename = "%s_all_future.xml" % msclass.cyear
     filepath = os.path.join(settings[hostname]['ms_sched_location'], filename)
 
     new_sched2 = s.query(ScheduledRecording).filter(ScheduledRecording.cyear == msclass.cyear).filter(
@@ -1131,39 +945,36 @@ def construct_docs_message(messagelines, updateddocs, subscriber):
     for doc in updateddocs:
         if lastfolder != doc.folder_name:
             messagelines.append('\n')
-            messagelines.append("==%s==" % ( remove_non_ascii(doc.folder_name)))
+            messagelines.append("==%s==" % (remove_non_ascii(doc.folder_name)))
             lastfolder = doc.folder_name
         messagelines.append(
             "-{0} [{1}] <{2}> at {3}".format(remove_non_ascii(doc.doc_name), remove_non_ascii(doc.doc_ext),
                                              doc.full_url,
                                              doc.date_added))
-    messagelines.append(
-        "\nTo unsubscribe to this alert, reply to this email with 'unsubscribe' in the message. Your last update was at {0}.".format(
-            subscriber.last_update))
+    messagelines.append(("\nTo unsubscribe to this alert, reply to this email with 'unsubscribe' in"
+         " the message. Your last update was at {0}.").format(subscriber.last_update))
 
 
 def construct_vids_message(messagelines, updatedrecordings, subscriber):
     messagelines.append("The following lecture(s) were just posted:\n")
     for rec in updatedrecordings:
         messagelines.append("-{0} [{1}] <{2}> at {3}".format(rec.name, 'vid', rec.mediasite_url, rec.date_added))
-    messagelines.append(
-        "\nTo unsubscribe to this alert, reply to this email with 'unsubscribe' in the message.  Your last update was at {0}.".format(
-            subscriber.last_update))
+    messagelines.append(("\nTo unsubscribe to this alert, reply to this email with 'unsubscribe' in the message. "
+                         " Your last update was at {0}.").format(subscriber.last_update))
 
 
 def construct_html_pagevids_all(msclass):
-    #LOGGER = logging.getLogger('navidile')
-    lines = []
-    lines.append('<head><META NAME="robots" CONTENT="noindex,nofollow"><title>Navidile {0}</title></head>\n'.format(
-        msclass.cyear))
-    lines.append('<body>\n')
-    lines.append('<link href="navidile_stylesheet.css" rel="stylesheet"  type="text/css" />\n')
+    lines = ['<head><META NAME="robots" CONTENT="noindex,nofollow">'
+             '<title>Navidile {0}</title></head>\n'.format(msclass.cyear),
+             '<body>\n',
+             '<link href="navidile_stylesheet.css" rel="stylesheet"  type="text/css" />\n']
+
     if msclass.notice:
         lines.append('<p>%s</p>' % msclass.notice)
     for course in s.query(Course).filter(Course.cyear == msclass.cyear).filter(
-                    Course.start_date < datetime.datetime.now()).order_by(desc(Course.start_date)).all():
+        Course.start_date < datetime.datetime.now()).order_by(desc(Course.start_date)).all():
 
-        lines.append('<h3>%s<br>%s</h3>\n' % (course.name, get_info_line(course) ))
+        lines.append('<h3>%s<br>%s</h3>\n' % (course.name, get_info_line(course)))
 
         lines.append('<table>\n')
         recs2 = s.query(Recording).filter(Recording.course_uid == course.unique_id).order_by(
@@ -1176,32 +987,27 @@ def construct_html_pagevids_all(msclass):
             else:
 
                 lines.append(
-                    '<tr><td>{5}</td><td>{4}</td><td><a href="{0}" rel="nofollow">{1}</a> </td><td>[<a href = "{2}">mp3</a>]</td><td>[<a href = "{3}">navidile</a>]</td></tr>\n'.format(
+                    '<tr><td>{5}</td><td>{4}</td><td><a href="{0}" rel="nofollow">{1}</a> </td><td>'
+                    '[<a href = "{2}">mp3</a>]</td><td>[<a href = "{3}">navidile</a>]</td></tr>\n'.format(
                         rec.mediasite_url, rec.name.replace(';', '<br>+'), rec.podcast_url, rec.navidile_url,
                         rec.rec_date.strftime("%Y-%m-%d"), rec.rec_date.strftime("%A")[0:3]))
 
-
-
-        #lines.append('</ul>')
+        # lines.append('</ul>')
         lines.append('</table><hr />\n')
     lines.append('<p>Last updated: %s</p>\n' % datetime.datetime.now().strftime('%c'))
-    #    lines.append('<p style="font-family:verdana;font-size:10px">To subscribe to email alerts when recordings are posted, send an email to <a href="mailto:navidile+r@macrowiz49b.mine.nu">navidile+r@macrowiz49b.mine.nu</a>.</p>')
     lines.append('</body>')
     fullhtml = ''.join(lines)
     htmlloc = os.path.join(settings[hostname]['htmlloc'], '%s-all-lr.html' % msclass.cyear)
-
     try:
         file1 = open(htmlloc, 'w')
         file1.write(fullhtml)
         file1.close()
-    except:
+    except IOError:
         logger.warn('error', exc_info=1)
-        #servertools.upload_file(settings,htmlloc,'%s-all-lr.html' % cyear)
 
 
 def get_info_line(course):
     string = []
-
     if course.mediasite_url:
         string.append('[<a href=%s>%s</a>]' % (course.mediasite_url.replace('rss.aspx', 'catalog.aspx'), 'mediasite'))
     if course.podcast_url:
@@ -1226,11 +1032,10 @@ class Folder(Base):
     course = Column(String(225), nullable=False)
     cyear = Column(Integer, nullable=False)
 
-
     def __init__(self, folder, course):
-        #orig_name.parts=  orig_name.split(' ',1)[0]
+        # orig_name.parts=  orig_name.split(' ',1)[0]
 
-        #XXX: Dates/academic year will now come from the API
+        # XXX: Dates/academic year will now come from the API
         self.date = None
 
         self.folderID = folder['folderID']
@@ -1270,7 +1075,6 @@ class Course(Base):
     podcast_url_auto = Column(String(225))
     last_error = Column(String(225))
 
-
     def __init__(self, name, cyear, course_id=None, navigator_url=None, mediasite_url=None, podcast_url=None,
                  rec_exclude=None, auto_number=False, keep_updated=False):
         self.name = name
@@ -1283,7 +1087,6 @@ class Course(Base):
         self.keep_updated = keep_updated
         self.last_updated = datetime.datetime.now()
         self.auto_number = auto_number
-        #self.last_recording=None
         self.start_date = None
         self.end_date = None
         self.course_id = course_id
@@ -1302,12 +1105,10 @@ class Document(Base):
     cyear = Column(Integer, nullable=False)
     folder_no = Column(String(225), nullable=False)
     doc_ext = Column(String(5), nullable=False)
-
     date_added = Column(DateTime, nullable=False)
     last_updated = Column(DateTime, nullable=False)
 
-
-    def __init__(self, folder, page, document, course):
+    def __init__(self, folder, document, course):
         self.url = document['url']
         self.doc_name = remove_non_ascii(document['title'])
         self.full_url = "http://navigator.medschool.pitt.edu" + self.url
@@ -1318,12 +1119,9 @@ class Document(Base):
         self.folder_no = folder['folderID']
         self.course_name = course.name
         self.cyear = course.cyear
-
         self.doc_ext = ""
-
         self.last_updated = datetime.datetime.now()
         self.date_added = datetime.datetime.now()
-
 
     def __repr__(self):
         return "%s %s %s" % (self.folder_name, self.idno, self.doc_name)
@@ -1339,7 +1137,6 @@ class NavidileWarning(Base):
     cyear = Column(Integer, nullable=False)
     tonotify = Column(Boolean, nullable=False)
 
-
     def __init__(self, subject, warningtxt, cyear, tonotify=True):
         self.subject = remove_non_ascii(subject)
         self.warning = remove_non_ascii(warningtxt)
@@ -1348,7 +1145,6 @@ class NavidileWarning(Base):
         self.last_updated = datetime.datetime.now()
         self.date_added = datetime.datetime.now()
         self.tonotify = tonotify
-
 
     def __repr__(self):
         return "%s %s %s" % (self.folder_name, self.idno, self.doc_name)
@@ -1373,7 +1169,6 @@ class Recording(Base):
     notified_no_podcast = Column(Boolean, nullable=True)
     next_id = Column(String(225), nullable=True)
     force_recreate = Column(Boolean, nullable=False)
-
 
     def __init__(self, idno, name="", mediasite_url="", podcast_url="", navidile_url="", rec_date=None, course=None,
                  folder_id=None, pub_date=""):
@@ -1403,7 +1198,6 @@ class Subscriber(Base):
     last_update = Column(DateTime, nullable=True)
     subscriptions = Column(String(14), nullable=True)
     cyear = Column(Integer, nullable=True)
-
 
     def __init__(self, emailaddress, cyear, subscriptions=""):
         self.email_addr = emailaddress
@@ -1448,8 +1242,7 @@ class NavidileTask(Base):
     selected_only = Column(Boolean, nullable=False)
     force_run = Column(Boolean, nullable=False)
 
-
-    def __init__(self, idno, name, start_time, end_time, course):
+    def __init__(self, idno, name, start_time, end_time):
         self.idno = idno
         self.name = name
         self.start_time_str = start_time
@@ -1483,9 +1276,8 @@ class ZoneCalItem(Base):
     location = Column(String(225), nullable=True)
     description = Column(String(2048), nullable=False)
 
-
-    def __init__(self, idno, name, start_time_str, end_time_str, location, description):
-        self.idno = idno
+    def __init__(self, id_no, name, start_time_str, end_time_str, location, description):
+        self.idno = id_no
         self.name = remove_non_ascii(name)
         self.start_time_str = start_time_str
         self.end_time_str = end_time_str
@@ -1494,16 +1286,16 @@ class ZoneCalItem(Base):
         self.location = location
         self.description = description
 
-    def parse_date(self, date_str):
+    @staticmethod
+    def parse_date(date_str):
         date_str = date_str.replace(' 0:00 am', ' 12:00 pm')
         return datetime.datetime.strptime(date_str.upper(), '%m/%d/%Y %I:%M %p')
 
 
 class ScheduledRecording(Base):
     __tablename__ = 'scheduled_recordings'
-
     idno = Column(String(225), primary_key=True)
-    lname = Column(String(225), nullable=False)
+    lecture_name = Column(String(225), nullable=False)
     l0name = Column(String(300), nullable=False)
     lec_id = Column(Integer, nullable=False)
     cyear = Column(Integer, nullable=False)
@@ -1523,8 +1315,7 @@ class ScheduledRecording(Base):
     notified_unscheduled = Column(Boolean, nullable=False)
     folderID = Column(String(225), nullable=True)
 
-
-    def __init__(self, calitem, ):
+    def __init__(self, calitem):
         self.idno = calitem.idno
         self.lec_id = calitem.lec_id
         self.course_name = calitem.course_name
@@ -1535,7 +1326,8 @@ class ScheduledRecording(Base):
         self.auto_number = calitem.auto_number
         self.mediasite_fldr = calitem.mediasite_fldr
 
-        self.lname = remove_non_ascii(calitem.name).replace("Lecture: ", "").replace("Lecture ", "L").replace("  ", " ")
+        self.lecture_name = remove_non_ascii(calitem.name)\
+            .replace("Lecture: ", "").replace("Lecture ", "L").replace("  ", " ")
         self.l0name = "L%02d: %s" % (
             self.lec_id, calitem.name.replace("Lecture: ", "").replace("Lecture ", "").replace("  ", " "))
         self.presenters = calitem.presenters
@@ -1570,9 +1362,9 @@ class ScheduledRecording(Base):
         return result
 
     def combine(self, item2):
-        self.lname = "%s; %s" % (self.lname, item2.lname)
+        self.lecture_name = "%s; %s" % (self.lecture_name, item2.lname)
         self.l0name = "%s; %s" % (self.l0name, item2.l0name)
-        #combine presenters
+        # combine presenters
         if not item2.presenters:
             item2.presenters = "Mediasite Presenter"
         if not self.presenters:
@@ -1588,8 +1380,8 @@ class ScheduledRecording(Base):
         self.end_date = item2.end_date
 
     def combine_as_same(self, item2):
-        self.lname = "%s; %s" % (self.lname, item2.lname)
-        self.l0name = "L%02d: %s" % (self.lec_id, self.lname)
+        self.lecture_name = "%s; %s" % (self.lecture_name, item2.lname)
+        self.l0name = "L%02d: %s" % (self.lec_id, self.lecture_name)
         item2p = set(item2.presenters.split('; '))
         selfp = set(self.presenters.split('; ')) | item2p
         self.presenters = '; '.join(selfp)
@@ -1608,7 +1400,7 @@ class ScheduledRecording(Base):
         if self.auto_number:
             return self.l0name
         else:
-            return self.lname
+            return self.lecture_name
 
 
 Base.metadata.create_all(engine)
@@ -1618,4 +1410,3 @@ s = Session()
 
 if __name__ == "__main__":
     main(sys.argv[1:])
-    
