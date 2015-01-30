@@ -1062,8 +1062,8 @@ class Course(Base):
 
     do_reset = Column(Boolean, nullable=False)
 
-    mediasite_url_auto = Column(String(225))
-    podcast_url_auto = Column(String(225))
+    mediasite_url_auto = Column(String(225), nullable=True)
+    podcast_url_auto = Column(String(225), nullable=True)
     last_error = Column(String(225))
 
     def __init__(self, name, cyear, course_id=None, navigator_url=None, mediasite_url=None, podcast_url=None,
