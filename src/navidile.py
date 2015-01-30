@@ -253,7 +253,7 @@ def update_calendar(ms_class):
 # look for possible database redundancies
 def redundancy_check(_):
     # find orphaned recordings and add them to existing courses
-    for recording in s.query(Recording).filter(Recording.course_uid == None).all():
+    for recording in s.query(Recording).filter(Recording.course_uid is None).all():
         course = s.query(Course).filter(Course.course_id == recording.course_id).first()
         if course:
             recording.course_uid = course.unique_id
@@ -262,14 +262,15 @@ def redundancy_check(_):
 
     for ms_class in s.query(MSClass).all():
         # check for recordings that didn't appear to have recorded
-        possible_failed_recordings = s.query(ScheduledRecording).filter(ScheduledRecording.recorded == False,
-                                                  ScheduledRecording.excluded == False,
-                                                  ScheduledRecording.end_date < (
-                                                      datetime.datetime.now() - datetime.timedelta(minutes=60)),
-                                                  ScheduledRecording.end_date > (
-                                                      datetime.datetime.now() - datetime.timedelta(days=3)),
-                                                  ScheduledRecording.cyear == ms_class.cyear,
-                                                  ScheduledRecording.notified_unrecorded == False).all()
+        possible_failed_recordings = s.query(ScheduledRecording).filter(
+            ScheduledRecording.recorded is False,
+            ScheduledRecording.excluded is False,
+            ScheduledRecording.end_date < (
+                datetime.datetime.now() - datetime.timedelta(minutes=60)),
+            ScheduledRecording.end_date > (
+                datetime.datetime.now() - datetime.timedelta(days=3)),
+            ScheduledRecording.cyear == ms_class.cyear,
+            ScheduledRecording.notified_unrecorded is False).all()
         if possible_failed_recordings:
             warning_txt = ('Hi, the following lecture(s) did not appear to  record:',)
             for missing_podcast in possible_failed_recordings:
@@ -285,13 +286,13 @@ def redundancy_check(_):
 
         # look for expected recordings that haven't been scheduled
         possible_unscheduled_recordings = s.query(ScheduledRecording).filter(
-            ScheduledRecording.scheduled == False,
-            ScheduledRecording.excluded == False,
+            ScheduledRecording.scheduled is False,
+            ScheduledRecording.excluded is False,
             ScheduledRecording.start_date < (
                 datetime.datetime.now() - datetime.timedelta(days=4)),
             ScheduledRecording.start_date > datetime.datetime.now(),
             ScheduledRecording.cyear == ms_class.cyear,
-            ScheduledRecording.notified_unscheduled == False).all()
+            ScheduledRecording.notified_unscheduled is False).all()
 
         if possible_unscheduled_recordings:
             warning_txt = ('Hi, the following lecture(s) have not been scheduled:',)
@@ -307,7 +308,7 @@ def redundancy_check(_):
         # look for mediasite that don't have podcasts
         missing_podcasts = s.query(Recording).filter(
             Recording.podcast_url == "",
-            Recording.notified_no_podcast == False,
+            Recording.notified_no_podcast is False,
             Recording.cyear == ms_class.cyear,
             Recording.date_added < (datetime.datetime.now() - datetime.timedelta(minutes=7 * 60))).all()
 
@@ -474,7 +475,7 @@ def update_course_db(_):
 # update courses
 def update_course_docs(task):
     # only get courses with valid urls
-    for course in s.query(Course).filter(Course.navigator_url != None).all():
+    for course in s.query(Course).filter(Course.navigator_url is not None).all():
         # set courseid if not set yet
         if not course.course_id or course.course_id == 0:
             idno = course.navigator_url.replace('&toolType=course', '').split('=')[-1]
@@ -511,7 +512,7 @@ def update_mediasite_sched(task):
 
 def update_recordings(task):
     logger.info('checking mediasite for new recordings...')
-    for course in s.query(Course).filter(Course.mediasite_url != None).all():
+    for course in s.query(Course).filter(Course.mediasite_url is not None).all():
         count = len(
             s.query(Recording).filter(Recording.course_name == course.name, Recording.cyear == course.cyear).all())
         if 'ALL COURSES' not in course.name and (course.keep_updated or count == 0 or task.force_run):
@@ -521,7 +522,7 @@ def update_recordings(task):
 def update_navidile_players(task):
     task.last_report = ""
     logger.info('updating navidile players...')
-    courses = s.query(Course).filter(Course.podcast_url != None).all()
+    courses = s.query(Course).filter(Course.podcast_url is not None).all()
 
     for course in courses:
         count = len(
@@ -646,7 +647,7 @@ def make_navidile_player(course, rec, last_rec_url, next_rec_url, task):
 def update_subscriber(subscriber, _):
     if 'r' in subscriber.subscriptions:
         mail_from = 'alerts%s-r@navidile.mine.nu' % subscriber.cyear
-        for course in s.query(Course).filter(Course.keep_updated == True).all():
+        for course in s.query(Course).filter(Course.keep_updated is True).all():
             updatedrecs = s.query(Recording).filter(Recording.date_added > subscriber.last_update).filter(
                 Recording.course_name == course.name).filter(Recording.cyear == subscriber.cyear).all()
             if course.keep_updated and len(updatedrecs) > 0:
@@ -939,8 +940,8 @@ def generate_mediasite_schedule_class(cal_items1, msclass):
 
 
 def construct_docs_message(messagelines, updateddocs, subscriber):
-    messagelines.append(
-        "Navidile found these documents updated on Navigator.  Make sure you are logged in to Navigator <http://navigator.medschool.pitt.edu> to access them. \n")
+    messagelines.append( "Navidile found these documents updated on Navigator.  "
+        "Make sure you are logged in to Navigator <http://navigator.medschool.pitt.edu> to access them. \n")
     lastfolder = ""
     for doc in updateddocs:
         if lastfolder != doc.folder_name:
