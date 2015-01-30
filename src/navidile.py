@@ -253,7 +253,7 @@ def update_calendar(ms_class):
 # look for possible database redundancies
 def redundancy_check(_):
     # find orphaned recordings and add them to existing courses
-    for recording in s.query(Recording).filter(Recording.course_uid is None).all():
+    for recording in s.query(Recording).filter(Recording.course_uid == None).all():
         course = s.query(Course).filter(Course.course_id == recording.course_id).first()
         if course:
             recording.course_uid = course.unique_id
@@ -475,7 +475,7 @@ def update_course_db(_):
 # update courses
 def update_course_docs(task):
     # only get courses with valid urls
-    for course in s.query(Course).filter(Course.navigator_url is not None).all():
+    for course in s.query(Course).filter(Course.navigator_url != None).all():
         # set courseid if not set yet
         if not course.course_id or course.course_id == 0:
             idno = course.navigator_url.replace('&toolType=course', '').split('=')[-1]
@@ -512,7 +512,7 @@ def update_mediasite_sched(task):
 
 def update_recordings(task):
     logger.info('checking mediasite for new recordings...')
-    for course in s.query(Course).filter(Course.mediasite_url is not None).all():
+    for course in s.query(Course).filter(Course.mediasite_url != None).all():
         count = len(
             s.query(Recording).filter(Recording.course_name == course.name, Recording.cyear == course.cyear).all())
         if 'ALL COURSES' not in course.name and (course.keep_updated or count == 0 or task.force_run):
@@ -522,7 +522,7 @@ def update_recordings(task):
 def update_navidile_players(task):
     task.last_report = ""
     logger.info('updating navidile players...')
-    courses = s.query(Course).filter(Course.podcast_url is not None).all()
+    courses = s.query(Course).filter(Course.podcast_url != None).all()
 
     for course in courses:
         count = len(
@@ -647,7 +647,7 @@ def make_navidile_player(course, rec, last_rec_url, next_rec_url, task):
 def update_subscriber(subscriber, _):
     if 'r' in subscriber.subscriptions:
         mail_from = 'alerts%s-r@navidile.mine.nu' % subscriber.cyear
-        for course in s.query(Course).filter(Course.keep_updated is True).all():
+        for course in s.query(Course).filter(Course.keep_updated == True).all():
             updatedrecs = s.query(Recording).filter(Recording.date_added > subscriber.last_update).filter(
                 Recording.course_name == course.name).filter(Recording.cyear == subscriber.cyear).all()
             if course.keep_updated and len(updatedrecs) > 0:
