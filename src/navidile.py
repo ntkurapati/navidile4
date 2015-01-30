@@ -4,7 +4,6 @@
 # wiki?
 # list of docs?
 
-
 # external libraries
 import yaml
 import feedparser
@@ -12,17 +11,11 @@ from BeautifulSoup import BeautifulSoup
 import icalendar
 import pytz
 from sqlalchemy import *
-
 from sqlalchemy.ext.declarative import declarative_base
-# from sqlalchemy.orm import relation, sessionmaker
 from sqlalchemy.orm import sessionmaker
+from email.mime.text import MIMEText
 
-# internal libraries
-
-
-import ms_maker
-
-# default libraries
+#default libraries
 import imaplib
 import urllib
 import re
@@ -37,8 +30,9 @@ import email
 import sys
 import logging
 
+#local imports
+import ms_maker
 import nav4api
-from email.mime.text import MIMEText
 
 
 hostname = socket.gethostname()
@@ -106,7 +100,7 @@ def init_logger(logger_name, filename=None):
     formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     # add formatter 
     ch.setFormatter(formatter)
-    #    sh.setFormatter(formatter)
+    # sh.setFormatter(formatter)
     # add ch to logger
     if len(logger.handlers) == 0:
         logger.addHandler(ch)
@@ -125,7 +119,7 @@ def main(_):
 
     # run these on startup every time
 
-    for i in range(1, 1000):
+    for _ in range(1, 1000):
         tasks = s.query(NavidileTask).all()
         for task in tasks:
             if not task.last_ran or (task.last_ran + datetime.timedelta(
@@ -448,7 +442,8 @@ def update_course_db(_):
             cyears = ncourse['curriculumYears']
             for cyear in cyears:
                 if ncourse['startDate'] and not ncourse['isPlaceholder']:
-                    course = s.query(Course).filter(Course.course_id == ncourse['moduleID']).filter(Course.cyear == cyear).first()
+                    course = s.query(Course).filter(Course.course_id == ncourse['moduleID']).filter(
+                        Course.cyear == cyear).first()
                     if not course:
                         course = Course(ncourse['displayName'], cyear, course_id=ncourse['moduleID'], auto_number=False,
                                         keep_updated=True)
@@ -729,7 +724,7 @@ def check_for_new_recordings(course):
 
 def check_for_doc_updates(course):
     foldername = "None"
-    course.last_error=""
+    course.last_error = ""
     try:
         opener = nav4api.build_opener(settings=settings)
         course_folders = nav4api.course_folders(course.course_id, opener)
@@ -754,7 +749,7 @@ def check_for_doc_updates(course):
                         logger.warn('KeyError in doc update course {0}:'.format(course.name, foldername), exc_info=1)
     except urllib2.HTTPError as e:
         logger.warn('HTTPError in doc update course {0}, folder{1}:'.format(course.name, foldername), exc_info=1)
-        course.last_error=str(e)
+        course.last_error = str(e)
     finally:
         s.commit()
 
@@ -926,7 +921,8 @@ def generate_mediasite_schedule_class(cal_items1, msclass):
 
 def construct_docs_message(messagelines, updateddocs, subscriber):
     messagelines.append("Navidile found these documents updated on Navigator.  "
-                        "Make sure you are logged in to Navigator <http://navigator.medschool.pitt.edu> to access them. \n")
+                        "Make sure you are logged in to Navigator <http://navigator.medschool.pitt.edu>"
+                        " to access them. \n")
     lastfolder = ""
     for doc in updateddocs:
         if lastfolder != doc.folder_name:
@@ -957,8 +953,9 @@ def construct_html_pagevids_all(msclass):
 
     if msclass.notice:
         lines.append('<p>%s</p>' % msclass.notice)
-    for course in s.query(Course).filter(Course.cyear == msclass.cyear).filter(
-                    Course.start_date < datetime.datetime.now()).order_by(desc(Course.start_date)).all():
+    for course in s.query(Course).filter(
+            Course.cyear == msclass.cyear).filter(
+            Course.start_date < datetime.datetime.now()).order_by(desc(Course.start_date)).all():
 
         lines.append('<h3>%s<br>%s</h3>\n' % (course.name, get_info_line(course)))
 
@@ -1344,7 +1341,7 @@ class ScheduledRecording(Base):
             result = item1.end_date - item2.start_date
         if item1.start_date >= item2.start_date:
             result = item1.start_date - item2.end_date
-        #        if result ==datetime.timedelta(seconds=0):
+        # if result ==datetime.timedelta(seconds=0):
         #            print self.name, item2.name
         #            print self.start_date,  self.end_date
         #            print item2.start_date, item2.end_date
