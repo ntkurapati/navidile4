@@ -1183,7 +1183,7 @@ class NavidileSettings(Base):
     __tablename__ = 'aa_navidile_settings'
 
     nkey = Column(String(225), primary_key=True)
-    value = Column(String(225), primary_key=True)
+    value = Column(String(225))
 
     def __init__(self, key, value):
         self.key = key
