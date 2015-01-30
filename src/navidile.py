@@ -35,9 +35,6 @@ import ms_maker
 import nav4api
 import servertools
 
-yamlfile = 'navidile.yml'
-hostname = socket.gethostname()
-
 
 def update_settings():
     # update settings from yaml file
@@ -70,11 +67,13 @@ def update_settings():
 
 
 # setup database stuff
+yamlfile = 'navidile.yml'
+update_settings()
+hostname = socket.gethostname()
 if 'db_engine' in settings[hostname]:
     db_engine = settings[hostname]['db_engine']
 else:
     raise Exception("I don't know where to to go for the database!")
-
 
 # set up the logger
 def init_logger(logger_name, filename=None):
