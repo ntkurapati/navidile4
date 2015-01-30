@@ -251,6 +251,7 @@ def update_calendar(ms_class):
 
 # look for possible database redundancies
 def redundancy_check(_):
+    logger.info('looking for unrecorded lectures or missing podcasts...')
     # find orphaned recordings and add them to existing courses
     for recording in s.query(Recording).filter(Recording.course_uid == None).all():
         course = s.query(Course).filter(Course.course_id == recording.course_id).first()
@@ -427,8 +428,6 @@ def unsubscribe_message(mailto, cyear, subs):
 
 def get_subscribed_alerts(subs):
     output = []
-    if 'g' in subs:
-        output.append('Posted Exams')
     if 'c' in subs:
         output.append('Course Docs')
     if 'r' in subs:
@@ -439,6 +438,7 @@ def get_subscribed_alerts(subs):
 
 
 def update_course_db(_):
+    logger.info('looking for new courses...')
     opener = nav4api.build_opener(settings=settings)
     current_year = datetime.datetime.now().year
     for year in range(current_year - 1, current_year + 2):
@@ -464,6 +464,7 @@ def update_course_db(_):
 
 # update courses
 def update_course_docs(task):
+    logger.info('updating course documents...')
     # only get courses with valid urls
     for course in s.query(Course).filter(Course.navigator_url != None).all():
         # set courseid if not set yet
@@ -485,6 +486,7 @@ def update_course_docs(task):
 
 
 def update_mediasite_sched(task):
+    logger.info('generating mediasite schedule...')
     for ms_class in s.query(MSClass).all():
         items = []
         for course in s.query(Course).filter(Course.cyear == ms_class.cyear).all():
@@ -523,18 +525,21 @@ def update_navidile_players(task):
 
 
 def update_webpages(_):
-    logger.info('updating pages...')
+    logger.info('updating webpages...')
     for msclass in s.query(MSClass).all():
         construct_html_pagevids_all(msclass)
 
 
 def update_calendars(_):
+    logger.info('updating calendar...')
     for msclass in s.query(MSClass).all():
         update_calendar(msclass)
+    logger.info('updating zone calendar...')
     update_zone_calendar()
 
 
 def update_subscribers(task):
+    logger.info('sending out emails..')
     subscribers = s.query(Subscriber).all()
     for subscriber in subscribers:
         update_subscriber(subscriber, task)
@@ -573,12 +578,6 @@ def update_navidile_player(course, task):
                 s.add(last_rec)
         last_rec = rec
         s.commit()
-
-
-def get_directory(filename):
-    path = os.path.dirname(os.path.abspath(__file__))
-    full_path = os.path.join(path, filename)
-    return full_path
 
 
 def make_navidile_player(course, rec, last_rec_url, next_rec_url, task):
@@ -636,7 +635,7 @@ def make_navidile_player(course, rec, last_rec_url, next_rec_url, task):
 
 def update_subscriber(subscriber, _):
     if 'r' in subscriber.subscriptions:
-        mail_from = 'alerts%s-r@navidile.mine.nu' % subscriber.cyear
+        mail_from = 'alerts%s-r@students.medschool.pitt.edu' % subscriber.cyear
         for course in s.query(Course).filter(Course.keep_updated == True).all():
             updatedrecs = s.query(Recording).filter(Recording.date_added > subscriber.last_update).filter(
                 Recording.course_name == course.name).filter(Recording.cyear == subscriber.cyear).all()
@@ -646,7 +645,7 @@ def update_subscriber(subscriber, _):
                 send_out_update("\n".join(message_lines), mail_from, subscriber,
                                 '[Navidile] %s: Recordings Added' % course.name)
     if 'c' in subscriber.subscriptions:
-        mail_from = 'alerts%s-c@navidile.mine.nu' % subscriber.cyear
+        mail_from = 'alerts%s-c@students.medschool.pitt.edu' % subscriber.cyear
         for course in s.query(Course).all():
 
             updateddocs = s.query(Document).filter(Document.date_added > subscriber.last_update).filter(
@@ -657,7 +656,7 @@ def update_subscriber(subscriber, _):
                 send_out_update("\n".join(message_lines), mail_from, subscriber,
                                 '[Navidile] %s: Documents Added' % course.name)
     if 'w' in subscriber.subscriptions:
-        mail_from = 'alerts%s-w@navidile.mine.nu' % subscriber.cyear
+        mail_from = 'alerts%s-w@students.medschool.pitt.edu' % subscriber.cyear
         for warning in s.query(NavidileWarning).filter(NavidileWarning.cyear == subscriber.cyear,
                                                        NavidileWarning.date_added > subscriber.last_update).all():
             send_out_update(warning.warning, mail_from, subscriber, '[Navidile]: %s' % warning.subject)
@@ -673,11 +672,6 @@ def send_out_update(output, mail_from, subscriber, header):
     msg['From'] = mail_from
     msg['To'] = subscriber.email_addr
     servertools.send_out('alerts@students.medschool.pitt.edu', [subscriber.email_addr], msg, settings)
-
-
-def parse_date(date_str):
-    date_str = date_str.replace(' 0:00 am', ' 12:00 pm')
-    return datetime.datetime.strptime(date_str, '%m.%d.%Y %I:%M %p')
 
 
 def dt_to_utc(naivedate):
@@ -735,6 +729,7 @@ def check_for_new_recordings(course):
 
 def check_for_doc_updates(course):
     foldername = "None"
+    course.last_error=""
     try:
         opener = nav4api.build_opener(settings=settings)
         course_folders = nav4api.course_folders(course.course_id, opener)
@@ -747,21 +742,21 @@ def check_for_doc_updates(course):
 
             foldername = folder['displayName']
             if 'virtualHomeFolder' != folder['displayName']:
-
                 for page in nav4api.folder_pages(course.course_id, folder['folderID'], opener):
-
                     try:
                         for document in nav4api.page_docs(course.course_id, folder['folderID'], page['pageID'], opener):
                             doc_obj = s.query(Document).get(document['url'])
-
                             if not doc_obj:
                                 doc_obj = Document(folder, document, course)
                             s.add(doc_obj)
                             s.commit()
                     except KeyError:
-                        pass
-    except urllib2.HTTPError:
+                        logger.warn('KeyError in doc update course {0}:'.format(course.name, foldername), exc_info=1)
+    except urllib2.HTTPError as e:
         logger.warn('HTTPError in doc update course {0}, folder{1}:'.format(course.name, foldername), exc_info=1)
+        course.last_error=str(e)
+    finally:
+        s.commit()
 
 
 # get all the calendar events + recordings, and add them to calendar
