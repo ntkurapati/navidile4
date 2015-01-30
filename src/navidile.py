@@ -1178,6 +1178,16 @@ class Subscriber(Base):
         self.cyear = cyear
 
 
+class NavidileSettings(Base):
+    __tablename__ = 'aa_navidile_settings'
+
+    key = Column(String(225), primary_key=True)
+    value = Column(String(225), primary_key=True)
+    def __init__(self, key, value):
+        self.key = key
+        self.value = value
+
+
 class CalendarItem(Base):
     __tablename__ = 'cal_items'
 
