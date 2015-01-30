@@ -16,7 +16,6 @@ from sqlalchemy.orm import sessionmaker
 from email.mime.text import MIMEText
 
 # default libraries
-import imaplib
 import urllib
 import re
 import time
@@ -25,23 +24,17 @@ import os.path
 import socket
 import json
 import urllib2
-import sched
-import email
 import sys
 import logging
+import smtplib
 
 # local imports
 import ms_maker
 import nav4api
-import servertools
 
 
 def update_settings():
     # update settings from yaml file
-    global settings
-    global hostname
-    hostname = socket.gethostname()
-
     yaml_file = 'navidile_settings.yml'
     path = os.path.dirname(os.path.abspath(__file__))
     yaml_file = os.path.join(path, yaml_file)
@@ -50,37 +43,28 @@ def update_settings():
     tempdir = os.path.join(os.getenv('HOME'), 'navidile_testing')
     if not os.path.exists(tempdir):
         os.makedirs(tempdir)
-    if hostname not in settings:
-        settings[hostname] = dict()
-    if 'log_loc' not in settings[hostname]:
-        settings[hostname]['log_loc'] = tempdir
-    if 'db_engine' not in settings[hostname]:
-        settings[hostname]['db_engine'] = 'sqlite:///{0}/test.db'.format(tempdir)
-    if 'htmlloc' not in settings[hostname]:
-        settings[hostname]['htmlloc'] = tempdir
-    if 'ms_sched_location' not in settings[hostname]:
-        settings[hostname]['ms_sched_location'] = tempdir
-    if 'cal_location' not in settings[hostname]:
-        settings[hostname]['cal_location'] = tempdir
-    if 'host_loc' not in settings[hostname]:
-        settings[hostname]['host_loc'] = "http://127.0.0.1"
-
+    if 'log_loc' not in settings:
+        settings['log_loc'] = tempdir
+    if 'db_engine' not in settings:
+        settings = 'sqlite:///{0}/test.db'.format(tempdir)
     yaml.dump(file(yaml_file))
+    return settings
 
 
 # setup database stuff
 yamlfile = 'navidile.yml'
-update_settings()
-if 'db_engine' in settings[hostname]:
-    db_engine = settings[hostname]['db_engine']
+settings = update_settings()
+if 'db_engine' in settings:
+    db_engine = settings['db_engine']
 else:
     raise Exception("I don't know where to to go for the database!")
+
 
 # set up the logger
 def init_logger(logger_name, filename=None):
     global logger
     if not filename:
-        filename = os.path.join(settings[hostname]['log_loc'], logger_name + '.log')
+        filename = os.path.join(settings['log_loc'], logger_name + '.log')
     logger = logging.getLogger(logger_name)
     logger.setLevel(logging.DEBUG)
     ch = logging.FileHandler(filename)
@@ -104,7 +88,6 @@ def main(_):
     logger = init_logger('navidile4')
     logger.info('Navidile started')
 
-    global settings
     update_settings()
 
     # run these on startup every time
@@ -221,10 +204,10 @@ def update_calendar(ms_class):
             event.add('priority', 5)
             cal.add_component(event)
         cal_string = cal.to_ical().replace(';VALUE=DATE', '').replace('-TIME', '')
-
-    file_name = os.path.join(settings[hostname]['cal_location'], str(ms_class.cyear) + '_navi.ics')
-    if not os.path.exists(settings[hostname]['cal_location']):
-        os.makedirs(settings[hostname]['cal_location'])
+    local_cal_url=s.query(NavidileSettings).get('local_cal_url')
+    file_name = os.path.join(local_cal_url, str(ms_class.cyear) + '_navi.ics')
+    if not os.path.exists(local_cal_url):
+        os.makedirs(local_cal_url)
     f = open(file_name, 'wb')
     f.write(cal_string)
     f.close()
@@ -313,7 +296,7 @@ def s_redundancy_check(_):
 def update_zone_calendar():
     logger.info('Updating Zone Calendar:')
     try:
-        rss_url = settings['global']['zone_cal_rss']
+        rss_url = s.query(NavidileSettings).get('zone_cal_rss')
         feed = feedparser.parse(rss_url)
 
         # parse through items
@@ -375,7 +358,7 @@ def update_zone_calendar():
             event.add('PRIORITY', 5)
             cal.add_component(event)
 
-        ics_file = os.path.join(settings[hostname]['cal_location'], 'zone.ics')
+        ics_file = os.path.join(s.query(NavidileSettings).get('local_cal_url'), 'zone.ics')
         f = open(ics_file, 'wb')
         f.write(cal.to_ical())
         f.close()
@@ -394,7 +377,7 @@ def subscribe_message(mailto, cyear, subs):
     msg['From'] = mailfrom
     msg['Reply-To'] = mailfrom.replace('students.medschool.pitt.edu', 'navidile.mine.nu')
     msg['To'] = mailto
-    servertools.send_out(mailfrom, [mailto], msg, settings)
+    send_out(mailfrom, [mailto], msg)
 
 
 def unsubscribe_message(mailto, cyear, subs):
@@ -407,7 +390,21 @@ def unsubscribe_message(mailto, cyear, subs):
     msg['From'] = mail_from
     msg['To'] = mailto
     msg['Reply-To'] = mail_from.replace('students.medschool.pitt.edu', 'navidile.mine.nu')
-    servertools.send_out(mail_from, [mailto], msg, settings)
+    send_out(mail_from, [mailto], msg)
+
+def send_out(mail_from, relayto, msg):
+    worked = False
+    smtp_url = s.query(NavidileSettings).get('email_srv_addr')
+    port = s.query(NavidileSettings).get('email_srv_port')
+    try:
+        server1 = smtplib.SMTP(smtp_url, port)
+        server1.sendmail(mail_from, relayto, msg.as_string())
+        logger.info("sent mail to %s" % relayto[0])
+        worked = True
+    except smtplib.SMTPException:
+        logger.warn('SMTP exception',  exc_info=1)
+    return worked
+
 
 
 def get_subscribed_alerts(subs):
@@ -421,7 +418,8 @@ def get_subscribed_alerts(subs):
 
 def s_update_course_db(_):
     logger.info('looking for new courses...')
-    opener = nav4api.build_opener(settings=settings)
+    opener = nav4api.build_opener(username=s.query(NavidileSettings).get('username'),
+                                  password=s.query(NavidileSettings).get('password'))
     current_year = datetime.datetime.now().year
     for year in range(current_year - 1, current_year + 2):
         ncourses = nav4api.courses_by_academic_year(year, opener)
@@ -530,6 +528,7 @@ def s_update_subscribers(task):
 
 def update_navidile_player(course, task):
     feed = feedparser.parse(course.podcast_url)
+    navidile_player_path = s.query(NavidileSettings).get('navidile_player_path');
     for item in feed["items"]:
         mp3_url = item['link']
         # idno = mp3_url.split('/')[-1].replace('.mp3', '').replace('-', '');
@@ -537,21 +536,19 @@ def update_navidile_player(course, task):
         rec = s.query(Recording).get((idno, course.unique_id))
         if rec:
             rec.podcast_url = mp3_url
-            rec.navidile_url = "{0}/{1}/{2}/{3}.html".format(settings[hostname]['host_loc'], course.cyear, course.name,
-                                                             rec.idno)
+            rec.navidile_url = "{0}/navidile_player/{1}/{2}/{3}.html"\
+                .format(navidile_player_path, course.cyear, course.name, rec.idno)
             s.commit()
 
-    navidile_link = settings[hostname]['host_loc'].replace('navidile_player', '{0}-all-lr.html'.format(course.cyear))
+    navidile_link = '{0}\{1}-all-lr.html'.format(navidile_player_path , course.cyear)
     last_rec_url = navidile_link
-    next_rec_url = settings[hostname]['host_loc'].replace('navidile_player', '{0}-all-lr.html'.format(course.cyear))
+    next_rec_url = navidile_link
     last_rec = None
     for rec in s.query(Recording).filter(Recording.course_uid == course.unique_id).order_by(Recording.rec_date).all():
         if rec.next_id:
             next_rec = s.query(Recording).get((rec.next_id, course.unique_id))
             if next_rec and next_rec.navidile_url:
                 next_rec_url = next_rec.navidile_url
-        else:
-            next_rec_url = navidile_link
         make_navidile_player(course, rec, last_rec_url, next_rec_url, task)
         last_rec_url = rec.navidile_url
         if last_rec:
@@ -567,7 +564,8 @@ def make_navidile_player(course, rec, last_rec_url, next_rec_url, task):
     if not rec.podcast_url or rec.podcast_url == "":
         return
 
-    filedir = os.path.join(settings[hostname]['htmlloc'], 'navidile_player', str(course.cyear), course.name)
+    filedir = os.path.join(s.query(NavidileSettings).get('local_navidile_url'),
+                           'navidile_player', str(course.cyear), course.name)
     if not os.path.exists(filedir):
         os.makedirs(filedir)
     filename = os.path.join(filedir, rec.idno + '.html')
@@ -601,7 +599,7 @@ def make_navidile_player(course, rec, last_rec_url, next_rec_url, task):
     data = data.replace('%SLIDEBASEURL%', slidebaseurl).replace('%MP3URL%', rec.podcast_url).replace('%REFS%',
                                                                                                      repr(refs))
     data = data.replace('%RECDATE%', rec.rec_date.isoformat())
-    data = data.replace('%MAINDIR%', settings[hostname]['host_loc'])
+    data = data.replace('%MAINDIR%', s.query(NavidileSettings).get('navidile_player_path')+'navidile_player')
     data = data.replace('%TITLE%', rec.name)
     data = data.replace('%COURSETITLE%', rec.course_name)
     data = data.replace('%LASTPRESENTATION%', last_rec_url)
@@ -654,7 +652,7 @@ def send_out_update(output, mail_from, subscriber, header):
     msg['Subject'] = header
     msg['From'] = mail_from
     msg['To'] = subscriber.email_addr
-    servertools.send_out('alerts@students.medschool.pitt.edu', [subscriber.email_addr], msg, settings)
+    send_out('alerts@students.medschool.pitt.edu', [subscriber.email_addr], msg)
 
 
 def dt_to_utc(naivedate):
@@ -714,7 +712,8 @@ def check_for_doc_updates(course):
     foldername = "None"
     course.last_error = ""
     try:
-        opener = nav4api.build_opener(settings=settings)
+        opener = nav4api.build_opener(username=s.query(NavidileSettings).get('username'),
+                                      password=s.query(NavidileSettings).get('password'))
         course_folders = nav4api.course_folders(course.course_id, opener)
         for folder in course_folders:
             folder_obj = s.query(Folder).get(folder['folderID'])
@@ -745,7 +744,8 @@ def check_for_doc_updates(course):
 # get all the calendar events + recordings, and add them to calendar
 def check_for_cal_updates(course):
     foldername = "none"
-    opener = nav4api.build_opener(settings=settings)
+    opener = nav4api.build_opener(username=s.query(NavidileSettings).get('username'),
+                                  password=s.query(NavidileSettings).get('password'))
     calitems = []
     cal_index = 1
     prev_recording_event = None
@@ -877,8 +877,9 @@ def generate_mediasite_schedule_class(cal_items1, msclass):
             s.add(a)
             s.commit()
 
-    if not os.path.exists(settings[hostname]['ms_sched_location']):
-        os.makedirs(settings[hostname]['ms_sched_location'])
+    local_ms_cal_url = s.query(NavidileSettings).get('local_ms_cal_url')
+    if not os.path.exists(local_ms_cal_url):
+        os.makedirs(local_ms_cal_url)
 
     new_sched = s.query(ScheduledRecording).filter(ScheduledRecording.cyear == msclass.cyear) \
         .filter(ScheduledRecording.excluded == 0) \
@@ -889,13 +890,13 @@ def generate_mediasite_schedule_class(cal_items1, msclass):
         .all()
 
     filename = "%s_combined.xml" % msclass.cyear
-    filepath = os.path.join(settings[hostname]['ms_sched_location'], filename)
+    filepath = os.path.join(local_ms_cal_url, filename)
 
     ms_maker.make_xml(new_sched, filepath, recordername=msclass.recorder_name)
-    # servertools.upload_file(settings,filepath, "sched/"+filename )
+    # .upload_file(settings,filepath, "sched/"+filename )
 
     filename = "%s_all_future.xml" % msclass.cyear
-    filepath = os.path.join(settings[hostname]['ms_sched_location'], filename)
+    filepath = os.path.join(local_ms_cal_url, filename)
 
     new_sched2 = s.query(ScheduledRecording).filter(ScheduledRecording.cyear == msclass.cyear).filter(
         ScheduledRecording.excluded == 0).filter(ScheduledRecording.combined_with_another == 0).filter(
@@ -965,7 +966,7 @@ def construct_html_pagevids_all(msclass):
     lines.append('<p>Last updated: %s</p>\n' % datetime.datetime.now().strftime('%c'))
     lines.append('</body>')
     fullhtml = ''.join(lines)
-    htmlloc = os.path.join(settings[hostname]['htmlloc'], '%s-all-lr.html' % msclass.cyear)
+    htmlloc = os.path.join(s.query(NavidileSettings).get('local_navidile_url'), '%s-all-lr.html' % msclass.cyear)
     try:
         file1 = open(htmlloc, 'w')
         file1.write(fullhtml)
@@ -1181,8 +1182,9 @@ class Subscriber(Base):
 class NavidileSettings(Base):
     __tablename__ = 'aa_navidile_settings'
 
-    key = Column(String(225), primary_key=True)
+    nkey = Column(String(225), primary_key=True)
     value = Column(String(225), primary_key=True)
+
     def __init__(self, key, value):
         self.key = key
         self.value = value
