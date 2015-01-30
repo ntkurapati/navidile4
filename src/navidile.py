@@ -263,8 +263,7 @@ def s_redundancy_check(_):
                 missing_podcast.notified_unrecorded = True
 
                 s.commit()
-            warning_txt += ("Please ignore if they weren't supposed to be recorded!"
-                            " Or maybe they went into the wrong course???  Fix in phpmyadmin!")
+            warning_txt += "Please ignore if they weren't supposed to be recorded!  Or maybe they went into the wrong course???  Fix in phpmyadmin!"
             warning = NavidileWarning('Missing recording?', '\n'.join(warning_txt), ms_class.cyear)
             s.add(warning)
             s.commit()
