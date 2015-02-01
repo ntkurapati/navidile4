@@ -454,6 +454,8 @@ def s_update_course_docs(task):
             course.course_id = int(idno)
             s.commit()
         if 'ALL COURSES' not in course.name and (not task.selected_only or course.keep_updated):
+
+
             check_for_doc_updates(course)
 
 
@@ -482,6 +484,7 @@ def mediasite_url_check(mediasite_url):
         return False
 
 
+
 def s_update_recordings(task):
     logger.info('checking mediasite for new recordings...')
     for course in s.query(Course).filter(Course.mediasite_url != None).all():
@@ -499,11 +502,14 @@ def s_update_recordings(task):
                 course.mediasite_url = ("http://mediasite.medschool.pitt.edu"
                                         "/som_mediasite/Catalog/pages/rss.aspx?catalogId=") + course.mediasite_id
                 if not mediasite_url_check(course.mediasite_url):
-
                     s.commit()
                     logger.warn("Mediasite CATALOG ID appears incorrect for course %s: "
                                 "http://mediasite.medschool.pitt.edu/som_mediasite/Catalog/Full/%s"
                                 % (course.name, course.mediasite_id))
+                if course.podcast_url and not mediasite_url_check(course.podcast_url):
+                    s.commit()
+                    logger.warn("Podcast URL appears incorrect for course %s: %s"
+                                % (course.name, course.podcast_url))
             check_for_new_recordings(course)
 
 
