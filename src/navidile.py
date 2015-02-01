@@ -499,18 +499,22 @@ def s_update_recordings(task):
                     course.mediasite_id = str(course.mediasite_url).split("/")[-1]
                 s.commit()
             if course.mediasite_id:
-                course.mediasite_url = ("http://mediasite.medschool.pitt.edu"
-                                        "/som_mediasite/Catalog/pages/rss.aspx?catalogId=") + course.mediasite_id
-                if not mediasite_url_check(course.mediasite_url):
+                if not course.mediasite_url:
+                    course.mediasite_url = ("http://mediasite.medschool.pitt.edu"
+                                            "/som_mediasite/Catalog/pages/rss.aspx?catalogId=") + course.mediasite_id
                     s.commit()
+                if mediasite_url_check(course.mediasite_url):
+                    if course.podcast_url and not mediasite_url_check(course.podcast_url):
+                        s.commit()
+                        logger.warn("Podcast URL appears incorrect for course %s: %s"
+                                    % (course.name, course.podcast_url))
+                    check_for_new_recordings(course)
+                else:
                     logger.warn("Mediasite catalog ID (mediasite_id) in the database appears incorrect for course %s: "
                                 "\nhttp://mediasite.medschool.pitt.edu/som_mediasite/Catalog/Full/%s"
                                 % (course.name, course.mediasite_id))
-                if course.podcast_url and not mediasite_url_check(course.podcast_url):
-                    s.commit()
-                    logger.warn("Podcast URL appears incorrect for course %s: %s"
-                                % (course.name, course.podcast_url))
-            check_for_new_recordings(course)
+
+
 
 
 def s_update_navidile_players(task):
