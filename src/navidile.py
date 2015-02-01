@@ -503,8 +503,8 @@ def s_update_recordings(task):
                                         "/som_mediasite/Catalog/pages/rss.aspx?catalogId=") + course.mediasite_id
                 if not mediasite_url_check(course.mediasite_url):
                     s.commit()
-                    logger.warn("Mediasite CATALOG ID appears incorrect for course %s: "
-                                "http://mediasite.medschool.pitt.edu/som_mediasite/Catalog/Full/%s"
+                    logger.warn("Mediasite catalog ID (mediasite_id) in the database appears incorrect for course %s: "
+                                "\nhttp://mediasite.medschool.pitt.edu/som_mediasite/Catalog/Full/%s"
                                 % (course.name, course.mediasite_id))
                 if course.podcast_url and not mediasite_url_check(course.podcast_url):
                     s.commit()
