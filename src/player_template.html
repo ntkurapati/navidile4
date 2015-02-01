@@ -70,8 +70,8 @@ function init() {
 	shortcut.add("Down", function() {
 		document.getElementById("slider").value=document._video.playbackRate-0.1;
 	});
-
-	if dateObj.getUTCMonth()==9 {
+    var today = new Date()
+	if today.getMonth()==9 {
 	    document.getElementById("slide").src="%MAINDIR%/1-halloween.jpg"
 	    document.getElementById("slidep").src="%MAINDIR%/1-halloween.jpg"
 	    }
