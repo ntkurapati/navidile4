@@ -477,9 +477,9 @@ def s_update_mediasite_sched(task):
 def mediasite_url_check(mediasite_url):
     try:
         page = urllib2.urlopen(mediasite_url).read()
-        return "<title>Mediasite Catalog Error</title> " in page
+        return "<title>Mediasite Catalog Error</title> " not in page
     except urllib2.HTTPError:
-        return None
+        return False
 
 
 def s_update_recordings(task):
@@ -499,9 +499,9 @@ def s_update_recordings(task):
                 course.mediasite_url = ("http://mediasite.medschool.pitt.edu"
                                         "/som_mediasite/Catalog/pages/rss.aspx?catalogId=") + course.mediasite_id
                 if not mediasite_url_check(course.mediasite_url):
-                    course.last_error = "Mediasite CATALOG ID appears incorrect"
+                    course.last_error = None
                     s.commit()
-                    logger.warn("Mediasite CATALOG ID appears incorrect for course %s: %s" % (course.name, course.mediasite_id))
+                    logger.warn("Mediasite CATALOG ID appears incorrect for course %s: %s" % (course.name, course.mediasite_url))
             check_for_new_recordings(course)
 
 
@@ -533,7 +533,7 @@ def s_update_calendars(_):
 
 
 def s_update_subscribers(task):
-    logger.info('sending out emails..')
+    logger.info('sending out emails..(if applicable)')
     subscribers = s.query(Subscriber).all()
     for subscriber in subscribers:
         update_subscriber(subscriber)
