@@ -475,8 +475,11 @@ def s_update_mediasite_sched(task):
 
 
 def mediasite_url_check(mediasite_url):
-    page = urllib2.urlopen(mediasite_url).read()
-    return "<title>Mediasite Catalog Error</title> " in page
+    try:
+        page = urllib2.urlopen(mediasite_url).read()
+        return "<title>Mediasite Catalog Error</title> " in page
+    except urllib2.HTTPError:
+        return None
 
 
 def s_update_recordings(task):
@@ -486,19 +489,19 @@ def s_update_recordings(task):
             s.query(Recording).filter(Recording.course_name == course.name, Recording.cyear == course.cyear).all())
         # fix mediasite url and mediasite id
 
-        if not course.mediasite_id and course.mediasite_url:
-            course.mediasite_id = str(course.mediasite_url).split("=")[-1]
-            if '/' in course.mediasite_id:
-                course.mediasite_id = str(course.mediasite_url).split("/")[-1]
-            s.commit()
-        if course.mediasite_id:
-            course.mediasite_url = ("http://mediasite.medschool.pitt.edu"
-                                    "/som_mediasite/Catalog/pages/rss.aspx?catalogId=") + course.mediasite_id
-            if not mediasite_url_check(course.mediasite_url):
-                course.last_error = "CATALOG ID appears incorrect"
-                s.commit()
-                logger.warn("CATALOG ID appears incorrect for course %s" % course.name)
         if 'ALL COURSES' not in course.name and (course.keep_updated or count == 0 or task.force_run):
+            if not course.mediasite_id and course.mediasite_url:
+                course.mediasite_id = str(course.mediasite_url).split("=")[-1]
+                if '/' in course.mediasite_id:
+                    course.mediasite_id = str(course.mediasite_url).split("/")[-1]
+                s.commit()
+            if course.mediasite_id:
+                course.mediasite_url = ("http://mediasite.medschool.pitt.edu"
+                                        "/som_mediasite/Catalog/pages/rss.aspx?catalogId=") + course.mediasite_id
+                if not mediasite_url_check(course.mediasite_url):
+                    course.last_error = "Mediasite CATALOG ID appears incorrect"
+                    s.commit()
+                    logger.warn("Mediasite CATALOG ID appears incorrect for course %s: %s" % (course.name, course.mediasite_id))
             check_for_new_recordings(course)
 
 
