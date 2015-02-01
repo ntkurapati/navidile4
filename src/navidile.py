@@ -505,7 +505,6 @@ def s_update_recordings(task):
                     s.commit()
                 if mediasite_url_check(course.mediasite_url):
                     if course.podcast_url and not mediasite_url_check(course.podcast_url):
-                        s.commit()
                         logger.warn("Podcast URL appears incorrect for course %s: %s"
                                     % (course.name, course.podcast_url))
                     check_for_new_recordings(course)
