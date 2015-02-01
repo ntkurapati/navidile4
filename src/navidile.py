@@ -276,7 +276,8 @@ def s_redundancy_check(_):
             Recording.podcast_url == "",
             Recording.notified_no_podcast == False,
             Recording.cyear == ms_class.cyear,
-            Recording.date_added < (datetime.datetime.now() - datetime.timedelta(minutes=7 * 60))).all()
+            Recording.date_added < (datetime.datetime.now() - datetime.timedelta(minutes=7 * 60)),
+            Recording.date_added > (datetime.datetime.now() - datetime.timedelta(days=7))).all()
 
         if missing_podcasts:
             warning_txt = ("I couldn't find the podcast for the following lecture(s)",)
@@ -452,15 +453,6 @@ def s_update_course_docs(task):
             idno = course.navigator_url.replace('&toolType=course', '').split('=')[-1]
             course.course_id = int(idno)
             s.commit()
-        # fix mediasite url and mediasite id
-        if not course.mediasite_id and course.mediasite_url:
-            course.mediasite_id = str(course.mediasite_url).split("=")[-1]
-            s.commit()
-        if course.mediasite_id and not course.mediasite_url:
-            course.mediasite_url = ("http://mediasite.medschool.pitt.edu"
-                                    "/som_mediasite/Catalog/pages/rss.aspx?catalogId=") + course.mediasite_id
-            s.commit()
-
         if 'ALL COURSES' not in course.name and (not task.selected_only or course.keep_updated):
             check_for_doc_updates(course)
 
@@ -482,11 +474,28 @@ def s_update_mediasite_sched(task):
         generate_mediasite_schedule_class(items, ms_class)
 
 
+def mediasite_url_check(mediasite_url):
+    page = urllib2.urlopen(mediasite_url).read()
+    return "<title>Mediasite Catalog Error</title> " in page
+
+
 def s_update_recordings(task):
     logger.info('checking mediasite for new recordings...')
     for course in s.query(Course).filter(Course.mediasite_url != None).all():
         count = len(
             s.query(Recording).filter(Recording.course_name == course.name, Recording.cyear == course.cyear).all())
+        # fix mediasite url and mediasite id
+
+        if not course.mediasite_id and course.mediasite_url:
+            course.mediasite_id = str(course.mediasite_url).split("=")[-1]
+            s.commit()
+        if course.mediasite_id:
+            course.mediasite_url = ("http://mediasite.medschool.pitt.edu"
+                                    "/som_mediasite/Catalog/pages/rss.aspx?catalogId=") + course.mediasite_id
+            if not mediasite_url_check(course.mediasite_url):
+                course.last_error = "CATALOG ID appears incorrect"
+                s.commit()
+                logger.warn("CATALOG ID appears incorrect for course %s" % course.name)
         if 'ALL COURSES' not in course.name and (course.keep_updated or count == 0 or task.force_run):
             check_for_new_recordings(course)
 
@@ -522,7 +531,7 @@ def s_update_subscribers(task):
     logger.info('sending out emails..')
     subscribers = s.query(Subscriber).all()
     for subscriber in subscribers:
-        update_subscriber(subscriber, task)
+        update_subscriber(subscriber)
 
 
 def update_navidile_player(course, task):
@@ -613,7 +622,7 @@ def make_navidile_player(course, rec, last_rec_url, next_rec_url, task):
     f.close()
 
 
-def update_subscriber(subscriber, _):
+def update_subscriber(subscriber):
     if 'r' in subscriber.subscriptions:
         mail_from = 'alerts%s-r@students.medschool.pitt.edu' % subscriber.cyear
         for course in s.query(Course).filter(Course.keep_updated == True).all():
@@ -664,11 +673,6 @@ def dt_to_utc(naivedate):
 def check_for_new_recordings(course):
     feed = feedparser.parse(course.mediasite_url)
     course.rec_count = len(feed['items'])
-
-    if course.rec_count == 0:
-        newurl = "http://mediasite.medschool.pitt.edu/som_mediasite/Catalog/pages/rss.aspx?catalogId={0}".format(
-            course.mediasite_id)
-        feed = feedparser.parse(newurl)
 
     for item in feed["items"]:
         # rec_name_list.append(item["title"])
@@ -977,7 +981,8 @@ def construct_html_pagevids_all(msclass):
 def get_info_line(course):
     string = []
     if course.mediasite_url:
-        string.append('[<a href=%s>%s</a>]' % (course.mediasite_url.replace('rss.aspx', 'catalog.aspx'), 'mediasite'))
+        string.append('[<a href=http://mediasite.medschool.pitt.edu/som_mediasite/Catalog/Full/%s>%s</a>]'
+                      % (course.mediasite_id, 'mediasite'))
     if course.podcast_url:
         string.append('[<a href=%s>%s</a>]' % (course.podcast_url, 'podcast'))
         string.append('[<a href=%s>%s</a>]' % (course.podcast_url.replace('http', "itpc"), 'iTunes'))
