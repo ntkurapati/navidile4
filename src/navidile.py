@@ -692,7 +692,6 @@ def check_for_new_recordings(course):
 
     for item in feed["items"]:
         # rec_name_list.append(item["title"])
-        print item["title"]
         # get unique id no of video
         idno = item['link'].split('/')[-1]
         idno1 = remove_non_ascii(idno)
