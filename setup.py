@@ -8,5 +8,6 @@ setup(
     license='GNU',
     author='ntk',
     author_email='',
-    description=''
+    description='', requires=['mechanize', 'BeautifulSoup', 'feedparser', 'sqlalchemy', 'sqlalchemy', 'pytz',
+                              'icalendar']
 )
