@@ -41,8 +41,3 @@ def check_for_doc_updates_nav4(course):
 for course in courses:
     print course
     print 'hi'
-
-
-
-
-1994327931

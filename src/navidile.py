@@ -488,6 +488,8 @@ def s_update_recordings(task):
 
         if not course.mediasite_id and course.mediasite_url:
             course.mediasite_id = str(course.mediasite_url).split("=")[-1]
+            if '/' in course.mediasite_id:
+                course.mediasite_id = str(course.mediasite_url).split("/")[-1]
             s.commit()
         if course.mediasite_id:
             course.mediasite_url = ("http://mediasite.medschool.pitt.edu"
