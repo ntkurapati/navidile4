@@ -1,7 +1,7 @@
 import nav4api
 import yaml
 
-yamlfil = 'navidile_settings.yml'
+yamlfile = 'navidile_settings.yml'
 settings = yaml.load(file(yamlfile))
 
 opener = nav4api.build_opener(settings=settings)
