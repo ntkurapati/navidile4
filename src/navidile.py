@@ -280,7 +280,7 @@ def s_redundancy_check(_):
             Recording.date_added > (datetime.datetime.now() - datetime.timedelta(days=7))).all()
 
         if missing_podcasts:
-            warning_txt = ("I couldn't find the podcast for the following lecture(s)",)
+            warning_txt = "I couldn't find the podcast for the following lecture(s)"
             for missing_podcast in missing_podcasts:
                 warning_txt += missing_podcast.name,
                 s.commit()
