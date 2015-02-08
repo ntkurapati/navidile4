@@ -1167,7 +1167,7 @@ class Recording(Base):
     next_id = Column(String(225), nullable=True)
     force_recreate = Column(Boolean, nullable=False)
     slide_base_url = Column(String(225), nullable=True)
-    image_refs = Column(Blob, nullable=True)
+    image_refs = Column(BLOB, nullable=True)
 
     def __init__(self, idno, name="", mediasite_url="", podcast_url="", navidile_url="", rec_date=None, course=None,
                  folder_id=None, pub_date=""):
