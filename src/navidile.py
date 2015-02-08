@@ -551,7 +551,6 @@ def s_update_subscribers(task):
 
 def update_navidile_player(course, task):
     feed = feedparser.parse(course.podcast_url)
-    navidile_player_path = s.query(NavidileSettings).get('navidile_player_path').value
     for item in feed["items"]:
         mp3_url = item['link']
         # idno = mp3_url.split('/')[-1].replace('.mp3', '').replace('-', '');
@@ -566,6 +565,7 @@ def update_navidile_player(course, task):
 
 
 def make_navidile_player(rec):
+    navidile_player_path = s.query(NavidileSettings).get('navidile_player_path').value
     if not rec.podcast_url or rec.podcast_url == "" or ( rec.slide_base_url and '.html' not in rec.navidile_url):
         return
 
