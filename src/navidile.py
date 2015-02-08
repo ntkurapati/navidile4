@@ -566,7 +566,7 @@ def update_navidile_player(course, task):
 
 
 def make_navidile_player(rec):
-    if not rec.podcast_url or rec.podcast_url == "" or rec.slide_base_url:
+    if not rec.podcast_url or rec.podcast_url == "" or ( rec.slide_base_url and '.html' not in rec.navidile_url):
         return
 
     scripturl = 'http://mediasite.medschool.pitt.edu/som_mediasite/FileServer/Presentation/{0}/manifest.js'.format(
