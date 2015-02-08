@@ -620,6 +620,11 @@ def make_navidile_player(course, rec, last_rec_url, next_rec_url, task):
     f = open(player_template)
     data = f.read()
     f.close()
+
+    rec.slide_base_url=slidebaseurl
+    rec.image_refs = repr(refs)
+    s.add(rec)
+    s.commit()
     data = data.replace('%SLIDEBASEURL%', slidebaseurl).replace('%MP3URL%', rec.podcast_url).replace('%REFS%',
                                                                                                      repr(refs))
     data = data.replace('%RECDATE%', rec.rec_date.isoformat())
@@ -1161,6 +1166,8 @@ class Recording(Base):
     notified_no_podcast = Column(Boolean, nullable=True)
     next_id = Column(String(225), nullable=True)
     force_recreate = Column(Boolean, nullable=False)
+    slide_base_url = Column(String(225), nullable=True)
+    image_refs = Column(Blob, nullable=True)
 
     def __init__(self, idno, name="", mediasite_url="", podcast_url="", navidile_url="", rec_date=None, course=None,
                  folder_id=None, pub_date=""):
