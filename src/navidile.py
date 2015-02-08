@@ -282,7 +282,7 @@ def s_redundancy_check(_):
         if missing_podcasts:
             warning_txt = "I couldn't find the podcast for the following lecture(s)"
             for missing_podcast in missing_podcasts:
-                warning_text += '\n'
+                warning_txt += '\n'
                 warning_txt += repr(missing_podcast.name),
                 s.commit()
                 missing_podcast.notified_no_podcast = True
