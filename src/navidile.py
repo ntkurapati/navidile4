@@ -559,30 +559,13 @@ def update_navidile_player(course, task):
         rec = s.query(Recording).get((idno, course.unique_id))
         if rec:
             rec.podcast_url = mp3_url
-
             s.commit()
-
-    navidile_link = '{0}\{1}-all-lr.html'.format(navidile_player_path, course.cyear)
-    last_rec_url = navidile_link
-    next_rec_url = navidile_link
-    last_rec = None
     for rec in s.query(Recording).filter(Recording.course_uid == course.unique_id).order_by(Recording.rec_date).all():
-        if rec.next_id:
-            next_rec = s.query(Recording).get((rec.next_id, course.unique_id))
-            if next_rec and next_rec.navidile_url:
-                next_rec_url = next_rec.navidile_url
-        make_navidile_player(course, rec, last_rec_url, next_rec_url, task)
-        last_rec_url = rec.navidile_url
-        if last_rec:
-            if not last_rec.next_id or last_rec.next_id != rec.idno:
-                last_rec.next_id = rec.idno
-                last_rec.force_recreate = True
-                s.add(last_rec)
-        last_rec = rec
-        s.commit()
+        make_navidile_player(rec)
 
 
-def make_navidile_player(course, rec, last_rec_url, next_rec_url, task):
+
+def make_navidile_player(rec):
     if not rec.podcast_url or rec.podcast_url == "" or rec.slide_base_url:
         return
 
@@ -609,30 +592,6 @@ def make_navidile_player(course, rec, last_rec_url, next_rec_url, task):
     rec.image_refs = repr(refs)
     s.add(rec)
     s.commit()
-
-    #following is now unnecessary
-    path = os.path.dirname(os.path.abspath(__file__))
-    player_template = 'player_template.html'
-    player_template = os.path.join(path, player_template)
-    f = open(player_template)
-    data = f.read()
-    f.close()
-    data = data.replace('%SLIDEBASEURL%', slidebaseurl).replace('%MP3URL%', rec.podcast_url).replace('%REFS%',
-                                                                                                     repr(refs))
-    data = data.replace('%RECDATE%', rec.rec_date.isoformat())
-    data = data.replace('%MAINDIR%', s.query(NavidileSettings).get('navidile_player_path').value+'navidile_player')
-    data = data.replace('%TITLE%', rec.name)
-    data = data.replace('%COURSETITLE%', rec.course_name)
-    data = data.replace('%LASTPRESENTATION%', last_rec_url)
-    data = data.replace('%NEXTPRESENTATION%', next_rec_url)
-    if rec.presenters:
-        data = data.replace('%PRESENTERS%', rec.presenters)
-    else:
-        data = data.replace('%PRESENTERS%', "Unknown")
-    data = data.replace('%MEDIASITEPLAYERLINK%', rec.mediasite_url)
-    f = open(unicode(filename), 'w')
-    f.write(remove_non_ascii(data))
-    f.close()
 
 
 def update_subscriber(subscriber):
