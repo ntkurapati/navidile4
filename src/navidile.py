@@ -280,15 +280,13 @@ def s_redundancy_check(_):
             Recording.date_added > (datetime.datetime.now() - datetime.timedelta(days=7))).all()
 
         if missing_podcasts:
-            warning_txt = "I couldn't find the podcast for the following lecture(s)"
+            warning_txt = ("I couldn't find the podcast for the following lecture(s)",)
             for missing_podcast in missing_podcasts:
-                warning_txt += '\n'
-                warning_txt += repr(missing_podcast.name),
-                s.commit()
+                warning_txt += (missing_podcast.name,)
                 missing_podcast.notified_no_podcast = True
-            warning_txt += '\n Have you checked if the rss feed is set to more than 10 items? ' \
-                           '\n Is the podcast server still running?'
-            warning = NavidileWarning('Missing podcast?', warning_txt, ms_class.cyear)
+            warning_txt += ('Have you checked if the rss feed is set to more than 10 items? ',
+                           ' Is the podcast server still running?')
+            warning = NavidileWarning('Missing podcast?', '\n'.join(warning_txt), ms_class.cyear)
             s.add(warning)
             s.commit()
 
@@ -1168,7 +1166,7 @@ class Recording(Base):
     next_id = Column(String(225), nullable=True)
     force_recreate = Column(Boolean, nullable=False)
     slide_base_url = Column(String(225), nullable=True)
-    image_refs = Column(BLOB, nullable=True)
+    image_refs = Column(BLO, nullable=True)
 
     def __init__(self, idno, name="", mediasite_url="", podcast_url="", navidile_url="", rec_date=None, course=None,
                  folder_id=None, pub_date=""):
