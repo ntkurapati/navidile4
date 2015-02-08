@@ -282,12 +282,13 @@ def s_redundancy_check(_):
         if missing_podcasts:
             warning_txt = "I couldn't find the podcast for the following lecture(s)"
             for missing_podcast in missing_podcasts:
-                warning_txt += missing_podcast.name,
+                warning_text += '\n'
+                warning_txt += repr(missing_podcast.name),
                 s.commit()
                 missing_podcast.notified_no_podcast = True
-            warning_txt += 'Have you checked if the rss feed is set to more than 10 items? ' \
-                           ' Is the podcast server still running?'
-            warning = NavidileWarning('Missing podcast?', '\n'.join(warning_txt), ms_class.cyear)
+            warning_txt += '\n Have you checked if the rss feed is set to more than 10 items? ' \
+                           '\n Is the podcast server still running?'
+            warning = NavidileWarning('Missing podcast?', warning_txt, ms_class.cyear)
             s.add(warning)
             s.commit()
 
