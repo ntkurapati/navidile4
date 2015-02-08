@@ -587,7 +587,7 @@ def make_navidile_player(rec):
     except IOError, urllib2.HTTPError:
         logger.warn('IOError', exc_info=1)
 
-    rec.navidile_url = "{0}navidile_player/?={1}".format(navidile_player_path, rec.idno)
+    rec.navidile_url = "{0}navidile_player/?id={1}".format(navidile_player_path, rec.idno)
     rec.slide_base_url=slidebaseurl
     rec.image_refs = repr(refs)
     s.add(rec)
