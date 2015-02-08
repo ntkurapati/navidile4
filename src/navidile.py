@@ -522,7 +522,7 @@ def s_update_navidile_players(task):
 
     for course in courses:
         count = len(
-            s.query(Recording).filter(Recording.course_uid == course.unique_id, Recording.navidile_url != "").all())
+            s.query(Recording).filter(Recording.course_uid == course.unique_id).all())
         if not task.selected_only or (task.selected_only and course.keep_updated or count == 0):
             task.last_report += ('\n doing course: {0}'.format(course.name))
             update_navidile_player(course, task)
@@ -559,8 +559,7 @@ def update_navidile_player(course, task):
         rec = s.query(Recording).get((idno, course.unique_id))
         if rec:
             rec.podcast_url = mp3_url
-            rec.navidile_url = "{0}/navidile_player/{1}/{2}/{3}.html"\
-                .format(navidile_player_path, course.cyear, course.name, rec.idno)
+
             s.commit()
 
     navidile_link = '{0}\{1}-all-lr.html'.format(navidile_player_path, course.cyear)
@@ -584,18 +583,9 @@ def update_navidile_player(course, task):
 
 
 def make_navidile_player(course, rec, last_rec_url, next_rec_url, task):
-    if not rec.podcast_url or rec.podcast_url == "":
+    if not rec.podcast_url or rec.podcast_url == "" or rec.slide_base_url:
         return
 
-    filedir = os.path.join(s.query(NavidileSettings).get('local_navidile_url').value,
-                           'navidile_player', str(course.cyear), course.name)
-    if not os.path.exists(filedir):
-        os.makedirs(filedir)
-    filename = os.path.join(filedir, rec.idno + '.html')
-    if os.path.exists(filename) and not rec.force_recreate and not task.force_run:
-        return
-    if rec.force_recreate:
-        rec.force_recreate = False
     scripturl = 'http://mediasite.medschool.pitt.edu/som_mediasite/FileServer/Presentation/{0}/manifest.js'.format(
         rec.idno)
     refs = []
@@ -613,17 +603,20 @@ def make_navidile_player(course, rec, last_rec_url, next_rec_url, task):
         logger.warn('auth request')
     except IOError, urllib2.HTTPError:
         logger.warn('IOError', exc_info=1)
+
+    rec.navidile_url = "{0}navidile_player/?={1}".format(navidile_player_path, rec.idno)
+    rec.slide_base_url=slidebaseurl
+    rec.image_refs = repr(refs)
+    s.add(rec)
+    s.commit()
+
+    #following is now unnecessary
     path = os.path.dirname(os.path.abspath(__file__))
     player_template = 'player_template.html'
     player_template = os.path.join(path, player_template)
     f = open(player_template)
     data = f.read()
     f.close()
-
-    rec.slide_base_url=slidebaseurl
-    rec.image_refs = repr(refs)
-    s.add(rec)
-    s.commit()
     data = data.replace('%SLIDEBASEURL%', slidebaseurl).replace('%MP3URL%', rec.podcast_url).replace('%REFS%',
                                                                                                      repr(refs))
     data = data.replace('%RECDATE%', rec.rec_date.isoformat())
