@@ -1059,7 +1059,10 @@ class Document(Base):
     def __init__(self, folder, document, course):
         self.url = document['url']
         self.doc_name = remove_non_ascii(document['title'])
-        self.full_url = "http://navigator.medschool.pitt.edu" + self.url
+        if 'http' in self.url:
+            self.full_url=self.url
+        else:
+            self.full_url = "http://navigator.medschool.pitt.edu" + self.url
         if folder['displayName'] is None:
             self.folder_name = 'NoName'
         else:
