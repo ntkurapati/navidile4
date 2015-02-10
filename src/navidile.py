@@ -286,7 +286,7 @@ def s_redundancy_check(_):
                 warning_txt += (missing_podcast.name,)
                 missing_podcast.notified_no_podcast = True
             warning_txt += ('Have you checked if the rss feed is set to more than 10 items? ',
-                           ' Is the podcast server still running?')
+                           ' Is the podcast server still running?',)
             warning = NavidileWarning('Missing podcast?', '\n'.join(warning_txt), ms_class.cyear)
             s.add(warning)
             s.commit()
