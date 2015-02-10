@@ -490,6 +490,7 @@ def s_update_recordings(task):
         # fix mediasite url and mediasite id
 
         if 'ALL COURSES' not in course.name and (course.keep_updated or count == 0 or task.force_run):
+            logger.info('checking course %s for recordings...' % course.name)
             if not course.mediasite_url_auto:
 
                 # check for Mediasite link
