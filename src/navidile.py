@@ -13,6 +13,7 @@ import pytz
 from sqlalchemy import *
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy import exc
 from email.mime.text import MIMEText
 
 # default libraries
@@ -106,8 +107,8 @@ def main(_):
                     s_update_navidile_players(task)
                 elif task.name == "update_mediasite_sched":
                     s_update_mediasite_sched(task)
-                elif task.name == "update_course_docs":
-                    s_update_course_docs(task)
+                #elif task.name == "update_course_docs":
+                    #s_update_course_docs(task)
                 elif task.name == "update_course_db":
                     s_update_course_db(task)
                 elif task.name == "update_recordings":
@@ -120,7 +121,7 @@ def main(_):
                     # update_subscriptions(task)
                     s_update_navidile_players(task)
                     s_update_mediasite_sched(task)
-                    s_update_course_docs(task)
+                    #s_update_course_docs(task)
                     s_update_course_db(task)
                     s_update_recordings(task)
                     s_redundancy_check(task)
@@ -708,11 +709,18 @@ def check_for_doc_updates(course):
                             s.commit()
                     except KeyError:
                         logger.warn('KeyError in doc update course {0}:'.format(course.name, foldername), exc_info=1)
+                    except exc.SQLAlchemyError as e:
+			            logger.warn('SQLError', exc_info=1)
     except urllib2.HTTPError as e:
         logger.warn('HTTPError in doc update course {0}, folder{1}:'.format(course.name, foldername), exc_info=1)
         course.last_error = str(e)
+    except exc.SQLAlchemyError as e:
+         logger.warn('SQLError', exc_info=1)
     finally:
-        s.commit()
+		try:
+			s.commit()
+		except exc.SQLAlchemyError as e:
+			logger.warn('SQLError', exc_info=1)
 
 
 # get all the calendar events + recordings, and add them to calendar
