@@ -454,8 +454,6 @@ def s_update_course_docs(task):
             course.course_id = int(idno)
             s.commit()
         if 'ALL COURSES' not in course.name and (not task.selected_only or course.keep_updated):
-
-
             check_for_doc_updates(course)
 
 
@@ -484,7 +482,6 @@ def mediasite_url_check(mediasite_url):
         return False
 
 
-
 def s_update_recordings(task):
     logger.info('checking mediasite for new recordings...')
     for course in s.query(Course).filter(Course.mediasite_url != None).all():
@@ -504,7 +501,7 @@ def s_update_recordings(task):
                 if possible_url_doc:
                     course.mediasite_url_auto = possible_url_doc.url
                     s.commit()
-
+            if not course.podcast_url_auto:
                 # check for Podcast link
                 possible_podcast_url_doc = s.query(Document).filter(Document.course_name == course.name,
                                                                     Document.doc_name == 'Podcast').first()
