@@ -246,7 +246,8 @@ def s_redundancy_check(_):
                 missing_podcast.notified_unrecorded = True
 
                 s.commit()
-            warning_txt += "Please ignore if they weren't supposed to be recorded!  Or maybe they went into the wrong course???  Fix in phpmyadmin!"
+            warning_txt += ("Please ignore if they weren't supposed to be recorded!  "
+                            "Or maybe they went into the wrong course???  Fix in phpmyadmin!",)
             warning = NavidileWarning('Missing recording?', '\n'.join(warning_txt), ms_class.cyear)
             s.add(warning)
             s.commit()
@@ -286,7 +287,7 @@ def s_redundancy_check(_):
                 warning_txt += (missing_podcast.name,)
                 missing_podcast.notified_no_podcast = True
             warning_txt += ('Have you checked if the rss feed is set to more than 10 items? ',
-                           ' Is the podcast server still running?')
+                           ' Is the podcast server still running?',)
             warning = NavidileWarning('Missing podcast?', '\n'.join(warning_txt), ms_class.cyear)
             s.add(warning)
             s.commit()
@@ -493,6 +494,22 @@ def s_update_recordings(task):
         # fix mediasite url and mediasite id
 
         if 'ALL COURSES' not in course.name and (course.keep_updated or count == 0 or task.force_run):
+            if not course.mediasite_url_auto:
+
+                # check for Mediasite link
+                possible_url_doc = s.query(Document).filter(Document.course_name == course.name,
+                                                            Document.doc_name == 'Lecture Recordings').first()
+                if possible_url_doc:
+                    course.mediasite_url_auto = possible_url_doc.url
+                    s.commit()
+
+                # check for Podcast link
+                possible_podcast_url_doc = s.query(Document).filter(Document.course_name == course.name,
+                                                                    Document.doc_name == 'Podcast').first()
+                if possible_podcast_url_doc:
+                    course.podcast_url = possible_podcast_url_doc.url
+                    s.commit()
+
             if not course.mediasite_id and course.mediasite_url:
                 course.mediasite_id = str(course.mediasite_url).split("=")[-1]
                 if '/' in course.mediasite_id:
@@ -705,6 +722,7 @@ def check_for_doc_updates(course):
                             doc_obj = s.query(Document).get(document['url'])
                             if not doc_obj:
                                 doc_obj = Document(folder, document, course)
+
                             s.add(doc_obj)
                             s.commit()
                     except KeyError:
