@@ -501,8 +501,11 @@ def s_update_recordings(task):
                 if possible_url_doc:
                     course.mediasite_url_auto = possible_url_doc.url
                     s.commit()
-            if not course.podcast_url_auto:
-                # check for Podcast link
+            if course.mediasite_url_auto and not course.mediasite_id and not course.mediasite_url:
+                course.mediasite_id = str(course.mediasite_url_auto).split("/")[-1]
+
+            # check for podcast link
+            if not course.podcast_url:
                 possible_podcast_url_doc = s.query(Document).filter(Document.course_name == course.name,
                                                                     Document.doc_name == 'Podcast').first()
                 if possible_podcast_url_doc:
@@ -912,10 +915,6 @@ def construct_docs_message(messagelines, updateddocs, subscriber):
                         " to access them. \n")
     lastfolder = ""
     for doc in updateddocs:
-        if lastfolder != doc.folder_name:
-            messagelines.append('\n')
-            messagelines.append("==%s==" % (remove_non_ascii(doc.folder_name)))
-            lastfolder = doc.folder_name
         messagelines.append(
             "-{0} [{1}] <{2}> at {3}".format(remove_non_ascii(doc.doc_name), remove_non_ascii(doc.doc_ext),
                                              doc.full_url,
@@ -994,7 +993,7 @@ Base = declarative_base(bind=engine)
 
 
 class Folder(Base):
-    __tablename__ = 'folder_nav4'
+    __tablename__ = 'nav_folders'
 
     folderID = Column(String(225), primary_key=True)
     startDate = Column(Date, nullable=True)
@@ -1036,14 +1035,10 @@ class Course(Base):
     auto_number = Column(Boolean)
     keep_updated = Column(Boolean)
     last_updated = Column(DateTime, nullable=False)
-
     start_date = Column(Date)
     end_date = Column(Date)
-
     do_reset = Column(Boolean, nullable=False)
-
     mediasite_url_auto = Column(String(225), nullable=True)
-    podcast_url_auto = Column(String(225), nullable=True)
     last_error = Column(String(225))
 
     def __init__(self, name, cyear, course_id=None, navigator_url=None, mediasite_url=None, podcast_url=None,
@@ -1071,11 +1066,10 @@ class Course(Base):
 
 
 class Document(Base):
-    __tablename__ = 'docs_nav4'
+    __tablename__ = 'nav_docs'
     url = Column(String(400), primary_key=True)
     full_url = Column(String(437), nullable=False)
     doc_name = Column(String(225), nullable=False)
-    folder_name = Column(String(225), nullable=False)
     course_name = Column(String(225), nullable=False)
     cyear = Column(Integer, nullable=False)
     folder_no = Column(String(225), nullable=False)
@@ -1090,10 +1084,6 @@ class Document(Base):
             self.full_url = self.url
         else:
             self.full_url = "http://navigator.medschool.pitt.edu" + self.url
-        if folder['displayName'] is None:
-            self.folder_name = 'NoName'
-        else:
-            self.folder_name = remove_non_ascii(folder['displayName'])
         self.folder_no = folder['folderID']
         self.course_name = course.name
         self.cyear = course.cyear
@@ -1102,7 +1092,7 @@ class Document(Base):
         self.date_added = datetime.datetime.now()
 
     def __repr__(self):
-        return "%s %s %s" % (self.folder_name, self.idno, self.doc_name)
+        return " %s %s" % (self.idno, self.doc_name)
 
 
 class NavidileWarning(Base):
@@ -1124,8 +1114,6 @@ class NavidileWarning(Base):
         self.date_added = datetime.datetime.now()
         self.tonotify = tonotify
 
-    def __repr__(self):
-        return "%s %s %s" % (self.folder_name, self.idno, self.doc_name)
 
 
 class Recording(Base):
@@ -1145,8 +1133,6 @@ class Recording(Base):
     cyear = Column(Integer, nullable=False)
     presenters = Column(String(255), nullable=True)
     notified_no_podcast = Column(Boolean, nullable=True)
-    next_id = Column(String(225), nullable=True)
-    force_recreate = Column(Boolean, nullable=False)
     slide_base_url = Column(String(225), nullable=True)
     image_refs = Column(BLOB, nullable=True)
 
@@ -1166,8 +1152,6 @@ class Recording(Base):
         self.folder_id = folder_id
         self.presenters = None
         self.notified_no_podcast = False
-        self.next_id = None
-        self.force_recreate = True
         self.course_uid = course.unique_id
 
 
