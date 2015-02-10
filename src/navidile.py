@@ -121,7 +121,7 @@ def main(_):
                     # update_subscriptions(task)
                     s_update_navidile_players(task)
                     s_update_mediasite_sched(task)
-                    #s_update_course_docs(task)
+                    s_update_course_docs(task)
                     s_update_course_db(task)
                     s_update_recordings(task)
                     s_redundancy_check(task)
@@ -721,6 +721,8 @@ def check_for_doc_updates(course):
                 for page in nav4api.folder_pages(course.course_id, folder['folderID'], opener):
                     try:
                         for document in nav4api.page_docs(course.course_id, folder['folderID'], page['pageID'], opener):
+                            if len(document['url']) > 400:
+                                continue
                             doc_obj = s.query(Document).get(document['url'])
                             if not doc_obj:
                                 doc_obj = Document(folder, document, course)
@@ -1074,7 +1076,7 @@ class Course(Base):
 class Document(Base):
     __tablename__ = 'docs_nav4'
     url = Column(String(400), primary_key=True)
-    full_url = Column(String(400), nullable=False)
+    full_url = Column(String(437), nullable=False)
     doc_name = Column(String(225), nullable=False)
     folder_name = Column(String(225), nullable=False)
     course_name = Column(String(225), nullable=False)
@@ -1088,7 +1090,7 @@ class Document(Base):
         self.url = document['url'][0:400]
         self.doc_name = remove_non_ascii(document['title'])
         if 'http' in self.url:
-            self.full_url=self.url
+            self.full_url = self.url
         else:
             self.full_url = "http://navigator.medschool.pitt.edu" + self.url
         if folder['displayName'] is None:
