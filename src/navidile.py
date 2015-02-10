@@ -735,9 +735,9 @@ def check_for_doc_updates(course):
          logger.warn('SQLError', exc_info=1)
     finally:
         try:
-			s.commit()
-		except exc.SQLAlchemyError as e:
-			logger.warn('SQLError', exc_info=1)
+            s.commit()
+        except exc.SQLAlchemyError as e:
+            logger.warn('SQLError', exc_info=1)
 
 
 # get all the calendar events + recordings, and add them to calendar
