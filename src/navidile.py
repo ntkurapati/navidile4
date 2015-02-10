@@ -498,6 +498,9 @@ def s_update_recordings(task):
                 # check for Mediasite link
                 possible_url_doc = s.query(Document).filter(Document.course_name == course.name,
                                                             Document.doc_name == 'Lecture Recordings').first()
+                if not possible_url_doc:
+                    possible_url_doc = s.query(Document).filter(Document.course_name == course.name,
+                                                                Document.doc_name == 'Lecture Recording Catalog').first()
                 if possible_url_doc:
                     course.mediasite_url_auto = possible_url_doc.url
                     s.commit()
