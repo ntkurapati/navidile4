@@ -107,8 +107,8 @@ def main(_):
                     s_update_navidile_players(task)
                 elif task.name == "update_mediasite_sched":
                     s_update_mediasite_sched(task)
-                #elif task.name == "update_course_docs":
-                    #s_update_course_docs(task)
+                elif task.name == "update_course_docs":
+                    s_update_course_docs(task)
                 elif task.name == "update_course_db":
                     s_update_course_db(task)
                 elif task.name == "update_recordings":
@@ -246,7 +246,7 @@ def s_redundancy_check(_):
                 missing_podcast.notified_unrecorded = True
 
                 s.commit()
-            warning_txt += ("Please ignore if they weren't supposed to be recorded!  "
+            warning_txt += ("Please ignore if they weren't supposed to be recorded!  ",
                             "Or maybe they went into the wrong course???  Fix in phpmyadmin!",)
             warning = NavidileWarning('Missing recording?', '\n'.join(warning_txt), ms_class.cyear)
             s.add(warning)
@@ -268,7 +268,7 @@ def s_redundancy_check(_):
                 warning_txt += missing_podcast.l0name,
                 missing_podcast.notified_unscheduled = True
                 s.commit()
-            warning_txt += "Please ignore if they aren't supposed to be recorded!",
+            warning_txt += ("Please ignore if they aren't supposed to be recorded!",)
             warning = NavidileWarning('Missing podcast?', '\n'.join(warning_txt), ms_class.cyear, tonotify=False)
             s.add(warning)
             s.commit()
@@ -287,7 +287,7 @@ def s_redundancy_check(_):
                 warning_txt += (missing_podcast.name,)
                 missing_podcast.notified_no_podcast = True
             warning_txt += ('Have you checked if the rss feed is set to more than 10 items? ',
-                           ' Is the podcast server still running?',)
+                           ' Is the podcast server still running?')
             warning = NavidileWarning('Missing podcast?', '\n'.join(warning_txt), ms_class.cyear)
             s.add(warning)
             s.commit()
