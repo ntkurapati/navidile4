@@ -727,14 +727,14 @@ def check_for_doc_updates(course):
                     except KeyError:
                         logger.warn('KeyError in doc update course {0}:'.format(course.name, foldername), exc_info=1)
                     except exc.SQLAlchemyError as e:
-			            logger.warn('SQLError', exc_info=1)
+                        logger.warn('SQLError', exc_info=1)
     except urllib2.HTTPError as e:
         logger.warn('HTTPError in doc update course {0}, folder{1}:'.format(course.name, foldername), exc_info=1)
         course.last_error = str(e)
     except exc.SQLAlchemyError as e:
          logger.warn('SQLError', exc_info=1)
     finally:
-		try:
+        try:
 			s.commit()
 		except exc.SQLAlchemyError as e:
 			logger.warn('SQLError', exc_info=1)
@@ -1082,7 +1082,7 @@ class Document(Base):
     last_updated = Column(DateTime, nullable=False)
 
     def __init__(self, folder, document, course):
-        self.url = document['url']
+        self.url = document['url'][0:400]
         self.doc_name = remove_non_ascii(document['title'])
         if 'http' in self.url:
             self.full_url=self.url
