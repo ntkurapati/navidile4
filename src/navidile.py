@@ -434,7 +434,6 @@ def s_update_course_db(_):
                     if not course:
                         course = Course(ncourse['displayName'], cyear, course_id=ncourse['moduleID'], auto_number=False,
                                         keep_updated=True)
-                        course.mediasite_url_auto = "auto_added"
                     if not course.start_date and ncourse['startDate']:
                         course.start_date = datetime.datetime.strptime(ncourse['startDate'], '%Y-%m-%dT%H:%M:%S.%f00')
                     if not course.end_date and ncourse['endDate']:
