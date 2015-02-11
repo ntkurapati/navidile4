@@ -534,17 +534,12 @@ def s_update_recordings(task):
                         logger.warn('could not access this mediasite url {0}'.format(course.mediasite_url))
             if course.podcast_url:
                 try:
-                    mediasite_url_check(course.podcast_url)
-                except MediasiteLookupException:
+                    if not mediasite_url_check(course.podcast_url):
                         logger.warn("Podcast URL appears incorrect for course %s: %s"
                                     % (course.name, course.podcast_url))
                 except urllib2.HTTPError:
                         logger.warn('could not access this podcast url {0}'.format(course.podcast_url))
 
-
-class MediasiteLookupException(Exception):
-    """raise this when there's a lookup error for my app"""
-    pass
 
 def s_update_navidile_players(task):
     task.last_report = ""
