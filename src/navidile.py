@@ -1047,6 +1047,7 @@ class Course(Base):
     end_date = Column(Date)
     do_reset = Column(Boolean, nullable=False)
     mediasite_url_auto = Column(String(225), nullable=True)
+    rec_count = Column(Integer, nullable=False)
     last_error = Column(String(225))
 
     def __init__(self, name, cyear, course_id=None, navigator_url=None, mediasite_url=None, podcast_url=None,
@@ -1071,7 +1072,7 @@ class Course(Base):
         if not rec_exclude:
             self.rec_exclude = '["Small Group", "Exam", "PBL", "Independent"]'
         self.do_reset = False
-
+        self.rec_count = 0
 
 class Document(Base):
     __tablename__ = 'nav_docs'
@@ -1143,7 +1144,7 @@ class Recording(Base):
     notified_no_podcast = Column(Boolean, nullable=True)
     slide_base_url = Column(String(225), nullable=True)
     image_refs = Column(BLOB, nullable=True)
-    rec_count = Column(Integer, nullable=False)
+
 
     def __init__(self, idno, name="", mediasite_url="", podcast_url="", navidile_url="", rec_date=None, course=None,
                  folder_id=None, pub_date=""):
@@ -1162,7 +1163,7 @@ class Recording(Base):
         self.presenters = None
         self.notified_no_podcast = False
         self.course_uid = course.unique_id
-        self.rec_count = 0
+
 
 
 class Subscriber(Base):
