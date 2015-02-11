@@ -536,7 +536,7 @@ def s_update_recordings(task):
                         logger.warn('could not access this mediasite url {0}'.format(course.mediasite_url))
             if course.podcast_url:
                 try:
-                    mediasite_url_check(course.mediasite_url)
+                    mediasite_url_check(course.podcast_url)
                 except MediasiteLookupException:
                         logger.warn("Podcast URL appears incorrect for course %s: %s"
                                     % (course.name, course.podcast_url))
