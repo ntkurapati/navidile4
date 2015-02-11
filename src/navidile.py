@@ -475,11 +475,11 @@ def s_update_mediasite_sched(task):
 
 
 def mediasite_url_check(mediasite_url):
-    try:
-        page = urllib2.urlopen(mediasite_url).read()
-        return "<title>Mediasite Catalog Error</title> " not in page
-    except urllib2.HTTPError:
-        return False
+    page = urllib2.urlopen(mediasite_url).read()
+    if "<title>Mediasite Catalog Error</title> " in page:
+        raise(MediasiteLookupException("This catalog page doesn't work!"))
+    page.close()
+
 
 
 def s_update_recordings(task):
@@ -523,18 +523,31 @@ def s_update_recordings(task):
                     course.mediasite_url = ("http://mediasite.medschool.pitt.edu"
                                             "/som_mediasite/Catalog/pages/rss.aspx?catalogId=") + course.mediasite_id
                     s.commit()
-                if mediasite_url_check(course.mediasite_url):
+                try:
+                    mediasite_url_check(course.mediasite_url)
                     if course.podcast_url and not mediasite_url_check(course.podcast_url):
                         logger.warn("Podcast URL appears incorrect for course %s: %s"
                                     % (course.name, course.podcast_url))
                     check_for_new_recordings(course)
-                else:
+                except MediasiteLookupException:
                     logger.warn("Mediasite catalog ID (mediasite_id) in the database appears incorrect for course %s: "
                                 "\nhttp://mediasite.medschool.pitt.edu/som_mediasite/Catalog/Full/%s"
                                 % (course.name, course.mediasite_id))
+                except urllib2.HTTPError:
+                        logger.warn('could not access this mediasite url {0}'.format(course.mediasite_url))
+            if course.podcast_url:
+                try:
+                    mediasite_url_check(course.mediasite_url)
+                except MediasiteLookupException:
+                        logger.warn("Podcast URL appears incorrect for course %s: %s"
+                                    % (course.name, course.podcast_url))
+                except urllib2.HTTPError:
+                        logger.warn('could not access this podcast url {0}'.format(course.podcast_url))
 
 
-
+class MediasiteLookupException(Exception):
+    """raise this when there's a lookup error for my app"""
+    pass
 
 def s_update_navidile_players(task):
     task.last_report = ""
@@ -666,7 +679,8 @@ def dt_to_utc(naivedate):
 def check_for_new_recordings(course):
     feed = feedparser.parse(course.mediasite_url)
     course.rec_count = len(feed['items'])
-
+    if course.rec_count:
+        logger.warn('no recordings found for {0}: {1}'.format(course.name, course.mediasite_url))
     for item in feed["items"]:
         # rec_name_list.append(item["title"])
         # get unique id no of video
@@ -727,7 +741,8 @@ def check_for_doc_updates(course):
                             doc_obj = s.query(Document).get(document['url'])
                             if not doc_obj:
                                 doc_obj = Document(folder, document, course)
-
+                            if 'extension' in document:
+                                doc_obj.doc_ext = document['extension']
                             s.add(doc_obj)
                             s.commit()
                     except KeyError:
