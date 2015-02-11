@@ -475,6 +475,8 @@ def s_update_mediasite_sched(task):
 
 
 def mediasite_url_check(mediasite_url):
+    if not mediasite_url:
+        return False
     page = urllib2.urlopen(mediasite_url).read()
     return "<title>Mediasite Catalog Error</title> " not in page
 
@@ -671,7 +673,7 @@ def dt_to_utc(naivedate):
 def check_for_new_recordings(course):
     feed = feedparser.parse(course.mediasite_url)
     course.rec_count = len(feed['items'])
-    if course.rec_count:
+    if course.rec_count==0:
         logger.warn('no recordings found for {0}: {1}'.format(course.name, course.mediasite_url))
     for item in feed["items"]:
         # rec_name_list.append(item["title"])
