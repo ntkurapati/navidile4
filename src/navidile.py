@@ -478,7 +478,6 @@ def mediasite_url_check(mediasite_url):
     page = urllib2.urlopen(mediasite_url).read()
     if "<title>Mediasite Catalog Error</title> " in page:
         raise(MediasiteLookupException("This catalog page doesn't work!"))
-    page.close()
 
 
 
