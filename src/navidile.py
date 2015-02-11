@@ -677,7 +677,7 @@ def check_for_new_recordings(course):
     feed = feedparser.parse(mediasite_feed_url)
     course.rec_count = len(feed['items'])
     if course.rec_count == 0:
-        logger.warn('no recordings found in the rss feed for {0}: {1}'.format(course.name, course.get_mediasite_feed_url ))
+        logger.warn('no recordings found in the rss feed for {0}: {1}'.format(course.name, course.get_mediasite_feed_url()))
     for item in feed["items"]:
         # rec_name_list.append(item["title"])
         # get unique id no of video
