@@ -504,6 +504,7 @@ def s_update_recordings(task):
                                                                 Document.doc_name == 'Lecture Recording Catalog').first()
                 if possible_url_doc:
                     course.mediasite_url_auto = possible_url_doc.url
+                    logger.info("found a mediasite link for {0} on navigator".format(course.name))
                     s.commit()
             if course.mediasite_url_auto and not course.mediasite_id and not course.mediasite_url:
                 course.mediasite_id = str(course.mediasite_url_auto).split("/")[-1]
@@ -514,6 +515,7 @@ def s_update_recordings(task):
                                                                     Document.doc_name == 'Podcast').first()
                 if possible_podcast_url_doc:
                     course.podcast_url = possible_podcast_url_doc.url
+                    logger.info("found a podcast link for {0} on navigator".format(course.name))
                     s.commit()
 
             if not course.mediasite_id and course.mediasite_url:
@@ -521,21 +523,19 @@ def s_update_recordings(task):
                 if '/' in course.mediasite_id:
                     course.mediasite_id = str(course.mediasite_url).split("/")[-1]
                 s.commit()
+
             if course.mediasite_id:
                 if not course.mediasite_url:
-                    course.mediasite_url = ("http://mediasite.medschool.pitt.edu"
-                                            "/som_mediasite/Catalog/pages/rss.aspx?catalogId=") + course.mediasite_id
-                    s.commit()
-
+                    course.mediasite_url = course.get_mediasite_feed_url()
                 try:
-                    if course.rec_count == 0 and not mediasite_url_check(course.mediasite_url):
+                    if course.rec_count == 0 and not mediasite_url_check(course.get_mediasite_feed_url()):
                         logger.warn("Mediasite catalog ID (mediasite_id) in the database appears incorrect "
-                                    "for course %s: http://mediasite.medschool.pitt.edu/som_mediasite/Catalog/Full/%s"
-                                    % (course.name, course.mediasite_id))
+                                    "for course %s: %s"
+                                    % (course.name, course.get_mediasite_catalog_url()))
                     else:
                         check_for_new_recordings(course)
                 except urllib2.HTTPError:
-                        logger.warn('could not access this mediasite url {0}'.format(course.mediasite_url))
+                        logger.warn('could not access this mediasite url {0}'.format(course.get_mediasite_feed_url()))
             if course.podcast_url:
                 try:
                     if not mediasite_url_check(course.podcast_url):
@@ -673,10 +673,11 @@ def dt_to_utc(naivedate):
 
 
 def check_for_new_recordings(course):
-    feed = feedparser.parse(course.mediasite_url)
+    mediasite_feed_url= course.get_mediasite_feed_url()
+    feed = feedparser.parse(mediasite_feed_url)
     course.rec_count = len(feed['items'])
-    if course.rec_count==0:
-        logger.warn('no recordings found for {0}: {1}'.format(course.name, course.mediasite_url))
+    if course.rec_count == 0:
+        logger.warn('no recordings found in the rss feed for {0}: {1}'.format(course.name, ))
     for item in feed["items"]:
         # rec_name_list.append(item["title"])
         # get unique id no of video
@@ -989,9 +990,9 @@ def construct_html_pagevids_all(msclass):
 
 def get_info_line(course):
     string = []
-    if course.mediasite_url:
+    if course.mediasite_id:
         string.append('[<a href=http://mediasite.medschool.pitt.edu/som_mediasite/Catalog/Full/%s>%s</a>]'
-                      % (course.mediasite_id, 'mediasite'))
+                      % (course.get_mediasite_catalog_url(), 'mediasite'))
     if course.podcast_url:
         string.append('[<a href=%s>%s</a>]' % (course.podcast_url, 'podcast'))
         string.append('[<a href=%s>%s</a>]' % (course.podcast_url.replace('http', "itpc"), 'iTunes'))
@@ -1077,6 +1078,14 @@ class Course(Base):
             self.rec_exclude = '["Small Group", "Exam", "PBL", "Independent"]'
         self.do_reset = False
         self.rec_count = 0
+
+    def get_mediasite_feed_url(self):
+        return("http://mediasite.medschool.pitt.edu"
+                        "/som_mediasite/Catalog/pages/rss.aspx?catalogId=") + self.mediasite_id
+
+    def get_mediasite_catalog_url(self):
+        return "http://mediasite.medschool.pitt.edu/som_mediasite/Catalog/Full/" + self.mediasite_id
+
 
 class Document(Base):
     __tablename__ = 'nav_docs'
