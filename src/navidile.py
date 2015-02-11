@@ -477,6 +477,8 @@ def s_update_mediasite_sched(task):
 def mediasite_url_check(mediasite_url):
     if not mediasite_url:
         return False
+    if "NULL" in mediasite_url:
+        return False
     page = urllib2.urlopen(mediasite_url).read()
     return "<title>Mediasite Catalog Error</title> " not in page
 
