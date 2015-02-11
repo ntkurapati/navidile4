@@ -476,8 +476,8 @@ def s_update_mediasite_sched(task):
 
 def mediasite_url_check(mediasite_url):
     page = urllib2.urlopen(mediasite_url).read()
-    if "<title>Mediasite Catalog Error</title> " in page:
-        raise(MediasiteLookupException("This catalog page doesn't work!"))
+    return "<title>Mediasite Catalog Error</title> " not in page
+
 
 
 
@@ -522,16 +522,14 @@ def s_update_recordings(task):
                     course.mediasite_url = ("http://mediasite.medschool.pitt.edu"
                                             "/som_mediasite/Catalog/pages/rss.aspx?catalogId=") + course.mediasite_id
                     s.commit()
+
                 try:
-                    mediasite_url_check(course.mediasite_url)
-                    if course.podcast_url and not mediasite_url_check(course.podcast_url):
-                        logger.warn("Podcast URL appears incorrect for course %s: %s"
-                                    % (course.name, course.podcast_url))
-                    check_for_new_recordings(course)
-                except MediasiteLookupException:
-                    logger.warn("Mediasite catalog ID (mediasite_id) in the database appears incorrect for course %s: "
-                                "\nhttp://mediasite.medschool.pitt.edu/som_mediasite/Catalog/Full/%s"
-                                % (course.name, course.mediasite_id))
+                    if course.rec_count == 0 and not mediasite_url_check(course.mediasite_url):
+                        logger.warn("Mediasite catalog ID (mediasite_id) in the database appears incorrect "
+                                    "for course %s: http://mediasite.medschool.pitt.edu/som_mediasite/Catalog/Full/%s"
+                                    % (course.name, course.mediasite_id))
+                    else:
+                        check_for_new_recordings(course)
                 except urllib2.HTTPError:
                         logger.warn('could not access this mediasite url {0}'.format(course.mediasite_url))
             if course.podcast_url:
