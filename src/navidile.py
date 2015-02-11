@@ -1143,6 +1143,7 @@ class Recording(Base):
     notified_no_podcast = Column(Boolean, nullable=True)
     slide_base_url = Column(String(225), nullable=True)
     image_refs = Column(BLOB, nullable=True)
+    rec_count = Column(Integer, nullable=False)
 
     def __init__(self, idno, name="", mediasite_url="", podcast_url="", navidile_url="", rec_date=None, course=None,
                  folder_id=None, pub_date=""):
@@ -1161,6 +1162,7 @@ class Recording(Base):
         self.presenters = None
         self.notified_no_podcast = False
         self.course_uid = course.unique_id
+        self.rec_count = 0
 
 
 class Subscriber(Base):
