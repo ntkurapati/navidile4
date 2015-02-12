@@ -1163,8 +1163,8 @@ class Subscriber(Base):
     email_addr = Column(String(225), primary_key=True)
     last_update = Column(DateTime, nullable=True)
     subscriptions = Column(String(14), nullable=True)
-    cyear = Column(Integer, nullable=True)
     password = Column(String(20), nullable=False)
+    class_years = Column(String(25), nullable=True)
 
     def __init__(self, emailaddress, cyear, subscriptions=""):
         self.email_addr = emailaddress
