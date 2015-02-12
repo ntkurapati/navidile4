@@ -642,7 +642,7 @@ def update_subscriber(subscriber):
 def send_out_update(output, mail_from, subscriber, header):
     email_text = output
     output += ("\n\nThis is an navidile alert. "
-               "Please visit http://students.medschool.pitt.edu/navidile_player/alerts.php?pw={0},alert={1} "
+               "Please visit http://students.medschool.pitt.edu/navidile_player/alerts.php?pw={0}&alert={1} "
                "to unsubscribe".format(subscriber.password,
                                        mail_from.split('@')[0].replace('alerts', '').replace('-', ':-')))
     msg = MIMEText(remove_non_ascii(email_text))
