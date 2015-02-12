@@ -602,6 +602,9 @@ def make_navidile_player(rec):
 
 
 def update_subscriber(subscriber):
+    if not subscriber.password:
+        subscriber.update_password()
+        s.commit()
     for subscription in subscriber.subscriptions.split(','):
         cyear = subscription.split(':')[0]
         if 'r' in subscription:
