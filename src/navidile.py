@@ -616,7 +616,7 @@ def update_subscriber(subscriber):
 
 def send_out_update(output, mail_from, subscriber, header):
     email_text = output
-    output += ("\n\nThis is an navidile alert. "
+    email_text += ("\n\nThis is an navidile alert. "
                "Please visit http://students.medschool.pitt.edu/navidile_player/alerts.php"
                "?pw={0}&alert={1}&action=unsubscribe"
                " to unsubscribe".format(subscriber.password,
