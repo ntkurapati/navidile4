@@ -602,8 +602,9 @@ def make_navidile_player(rec):
 
 
 def update_subscriber(subscriber):
-    for cyear in subscriber.class_years.split(','):
-        if 'r' in subscriber.subscriptions:
+    for subscription in subscriber.subscriptions.split(','):
+        cyear = subscription.split(':')[0]
+        if 'r' in subscription:
             mail_from = 'alerts%s-r@students.medschool.pitt.edu' % cyear
             for course in s.query(Course).filter(Course.keep_updated == True).all():
                 updatedrecs = s.query(Recording)\
@@ -615,7 +616,7 @@ def update_subscriber(subscriber):
                     construct_vids_message(message_lines, updatedrecs, subscriber)
                     send_out_update("\n".join(message_lines), mail_from, subscriber,
                                     '[Navidile] %s: Recordings Added' % course.name)
-        if 'c' in subscriber.subscriptions:
+        if 'c' in subscription:
             mail_from = 'alerts%s-c@students.medschool.pitt.edu' % cyear
             for course in s.query(Course).all():
 
@@ -628,7 +629,7 @@ def update_subscriber(subscriber):
                     construct_docs_message(message_lines, updateddocs, subscriber)
                     send_out_update("\n".join(message_lines), mail_from, subscriber,
                                     '[Navidile] %s: Documents Added' % course.name)
-        if 'w' in subscriber.subscriptions:
+        if 'w' in subscription:
             mail_from = 'alerts%s-w@students.medschool.pitt.edu' % cyear
             for warning in s.query(NavidileWarning).filter(NavidileWarning.cyear == cyear,
                                                            NavidileWarning.date_added > subscriber.last_update).all():
@@ -1162,9 +1163,8 @@ class Subscriber(Base):
 
     email_addr = Column(String(225), primary_key=True)
     last_update = Column(DateTime, nullable=True)
-    subscriptions = Column(String(14), nullable=True)
     password = Column(String(20), nullable=False)
-    class_years = Column(String(25), nullable=True)
+    subscriptions = Column(String(100), nullable=True)
 
     def __init__(self, emailaddress, cyear, subscriptions=""):
         self.email_addr = emailaddress
