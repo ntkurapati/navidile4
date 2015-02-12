@@ -972,7 +972,7 @@ def construct_html_pagevids_all(msclass):
 def get_info_line(course):
     string = []
     if course.mediasite_id:
-        string.append('[<a href=http://mediasite.medschool.pitt.edu/som_mediasite/Catalog/Full/%s>%s</a>]'
+        string.append('[<a href=%s>%s</a>]'
                       % (course.get_mediasite_catalog_url(), 'mediasite'))
     if course.podcast_url:
         string.append('[<a href=%s>%s</a>]' % (course.podcast_url, 'podcast'))
