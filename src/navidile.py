@@ -27,6 +27,7 @@ import urllib2
 import sys
 import logging
 import smtplib
+import random
 
 # local imports
 import ms_maker
@@ -93,42 +94,13 @@ def main(_):
     # run these on startup every time
 
     for _ in range(1, 1000):
-        tasks = s.query(NavidileTask).all()
+        tasks = random.shuffle( s.query(NavidileTask).all())
         for task in tasks:
             if not task.last_ran or (task.last_ran + datetime.timedelta(
                     seconds=task.run_interval)) < datetime.datetime.now() or task.force_run:
-                if task.name == "update_webpages":
-                    s_update_webpages(task)
-                elif task.name == "update_calendars":
-                    s_update_calendars(task)
-                elif task.name == "update_subscribers":
-                    s_update_subscribers(task)
-                elif task.name == "update_navidile_players":
-                    s_update_navidile_players(task)
-                elif task.name == "update_mediasite_sched":
-                    s_update_mediasite_sched(task)
-                elif task.name == "update_course_docs":
-                    s_update_course_docs(task)
-                elif task.name == "update_course_db":
-                    s_update_course_db(task)
-                elif task.name == "update_recordings":
-                    s_update_recordings(task)
-                elif task.name == "redundancy_check":
-                    s_redundancy_check(task)
-                elif task.name == "update_everything":
-                    s_update_calendars(task)
-                    s_update_subscribers(task)
-                    # update_subscriptions(task)
-                    s_update_navidile_players(task)
-                    s_update_mediasite_sched(task)
-                    s_update_course_docs(task)
-                    s_update_course_db(task)
-                    s_update_recordings(task)
-                    s_redundancy_check(task)
-                task.last_ran = datetime.datetime.now()
-                if task.force_run:
-                    task.force_run = False
-
+                func_name = 's_'+task.name
+                if func_name in globals():
+                    globals()[func_name](task)
         s.commit()
 
         time.sleep(15)
