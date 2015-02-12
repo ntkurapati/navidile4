@@ -94,7 +94,7 @@ def main(_):
     # run these on startup every time
 
     for _ in range(1, 1000):
-        tasks = random.shuffle( s.query(NavidileTask).all())
+        tasks =  s.query(NavidileTask).all()
         for task in tasks:
             if not task.last_ran or (task.last_ran + datetime.timedelta(
                     seconds=task.run_interval)) < datetime.datetime.now() or task.force_run:
