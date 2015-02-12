@@ -240,15 +240,28 @@ def s_redundancy_check(_):
             ScheduledRecording.cyear == ms_class.cyear,
             ScheduledRecording.notified_unrecorded == False).all()
         if possible_failed_recordings:
-            warning_txt = ('Hi, the following lecture(s) did not appear to  record:',)
-            for missing_podcast in possible_failed_recordings:
-                warning_txt += (missing_podcast.l0name,)
-                missing_podcast.notified_unrecorded = True
-
+            warning_txt = ('Hi, the following lecture(s) did not appear to record:',)
+            for missing_recording in possible_failed_recordings:
+                mediasite_url = "couldn't find it..."
+                course = s.query(Course).get(missing_recording.course_uid)
+                if course:
+                    mediasite_url = course.get_mediasite_catalog_url()
+                warning_txt += ("\n {0} {1}".format(missing_recording.l0name, mediasite_url),)
+                missing_recording.notified_unrecorded = True
                 s.commit()
-            warning_txt += ("Please ignore if they weren't supposed to be recorded!  ",
-                            "Or maybe they went into the wrong course???  Fix in phpmyadmin!",)
-            warning = NavidileWarning('Missing recording?', '\n'.join(warning_txt), ms_class.cyear)
+
+            warning_txt += ("\nPlease ignore if they weren't supposed to be recorded!  ",
+                            "You can adjust the rec_exclude field to exclude checking of lectures with particular "
+                            "keywords.",
+                            "\nThings to check:",
+                            "\n1. make sure that they did not go to the wrong course.  (If the mediasite_fldr field is"
+                            "wrong, it will go to your class folder instead",
+                            "\n2. Rss feed is enabled. See:",
+                            "http://students.medschool.pitt.edu/wiki/index.php/Tech_Committee_Guide#Enable_RSS_feed",
+                            "\n3. Correct mediasite url in phpmyadmin (Check links next to recordings above).",
+                            "\n\n PHPmyadmin link: http://http://students.medschool.pitt.edu/phpmyadmin/",
+                            "\n navidile link: http://students.medschool.pitt.edu/navidile/",)
+            warning = NavidileWarning('Missing recording?', ''.join(warning_txt), ms_class.cyear)
             s.add(warning)
             s.commit()
 
@@ -287,7 +300,7 @@ def s_redundancy_check(_):
                 warning_txt += (missing_podcast.name,)
                 missing_podcast.notified_no_podcast = True
             warning_txt += ('Have you checked if the rss feed is set to more than 10 items? ',
-                           ' Is the podcast server still running?')
+                             ' Is the podcast server still running?')
             warning = NavidileWarning('Missing podcast?', '\n'.join(warning_txt), ms_class.cyear)
             s.add(warning)
             s.commit()
@@ -367,33 +380,6 @@ def update_zone_calendar():
         logger.warn('IOException:', exc_info=1)
 
 
-# process alert subscriptions
-def subscribe_message(mailto, cyear, subs):
-    alerts = get_subscribed_alerts(subs)
-    email_text = ("You are currently subscribed to Navidile email alert: %s. "
-                  " Reply to this message to unsubscribe to this alert.") % alerts
-    mailfrom = 'alerts' + cyear + '-' + subs + '@students.medschool.pitt.edu'
-    msg = MIMEText(email_text)
-    msg['Subject'] = "Navidile Subscription: %s" % alerts
-    msg['From'] = mailfrom
-    msg['Reply-To'] = mailfrom.replace('students.medschool.pitt.edu', 'navidile.mine.nu')
-    msg['To'] = mailto
-    send_out(mailfrom, [mailto], msg)
-
-
-def unsubscribe_message(mailto, cyear, subs):
-    alerts = get_subscribed_alerts(subs)
-    email_text = ("You have unsubscribed to these Navidile email alert: %s."
-                  "  Reply to this message to resubscribe to this alert at any time.") % alerts
-    mail_from = 'alerts' + cyear + '+' + subs + '@students.medschool.pitt.edu'
-    msg = MIMEText(email_text)
-    msg['Subject'] = "Navidile Subscription: %s" % alerts
-    msg['From'] = mail_from
-    msg['To'] = mailto
-    msg['Reply-To'] = mail_from.replace('students.medschool.pitt.edu', 'navidile.mine.nu')
-    send_out(mail_from, [mailto], msg)
-
-
 def send_out(mail_from, relayto, msg):
     worked = False
     smtp_url = s.query(NavidileSettings).get('email_srv_addr').value
@@ -406,15 +392,6 @@ def send_out(mail_from, relayto, msg):
     except smtplib.SMTPException:
         logger.warn('SMTP exception',  exc_info=1)
     return worked
-
-
-def get_subscribed_alerts(subs):
-    output = []
-    if 'c' in subs:
-        output.append('Course Docs')
-    if 'r' in subs:
-        output.append('Lecture recordings')
-    return ', '.join(output)
 
 
 def s_update_course_db(_):
@@ -625,39 +602,47 @@ def make_navidile_player(rec):
 
 
 def update_subscriber(subscriber):
-    if 'r' in subscriber.subscriptions:
-        mail_from = 'alerts%s-r@students.medschool.pitt.edu' % subscriber.cyear
-        for course in s.query(Course).filter(Course.keep_updated == True).all():
-            updatedrecs = s.query(Recording).filter(Recording.date_added > subscriber.last_update).filter(
-                Recording.course_name == course.name).filter(Recording.cyear == subscriber.cyear).all()
-            if course.keep_updated and len(updatedrecs) > 0:
-                message_lines = []
-                construct_vids_message(message_lines, updatedrecs, subscriber)
-                send_out_update("\n".join(message_lines), mail_from, subscriber,
-                                '[Navidile] %s: Recordings Added' % course.name)
-    if 'c' in subscriber.subscriptions:
-        mail_from = 'alerts%s-c@students.medschool.pitt.edu' % subscriber.cyear
-        for course in s.query(Course).all():
+    for cyear in subscriber.class_years.split(','):
+        if 'r' in subscriber.subscriptions:
+            mail_from = 'alerts%s-r@students.medschool.pitt.edu' % cyear
+            for course in s.query(Course).filter(Course.keep_updated == True).all():
+                updatedrecs = s.query(Recording)\
+                    .filter(Recording.date_added > subscriber.last_update)\
+                    .filter(Recording.course_name == course.name)\
+                    .filter(Recording.cyear == cyear).all()
+                if course.keep_updated and len(updatedrecs) > 0:
+                    message_lines = []
+                    construct_vids_message(message_lines, updatedrecs, subscriber)
+                    send_out_update("\n".join(message_lines), mail_from, subscriber,
+                                    '[Navidile] %s: Recordings Added' % course.name)
+        if 'c' in subscriber.subscriptions:
+            mail_from = 'alerts%s-c@students.medschool.pitt.edu' % cyear
+            for course in s.query(Course).all():
 
-            updateddocs = s.query(Document).filter(Document.date_added > subscriber.last_update).filter(
-                Document.course_name == course.name).filter(Document.cyear == subscriber.cyear).all()
-            if course.keep_updated and len(updateddocs) > 0:
-                message_lines = []
-                construct_docs_message(message_lines, updateddocs, subscriber)
-                send_out_update("\n".join(message_lines), mail_from, subscriber,
-                                '[Navidile] %s: Documents Added' % course.name)
-    if 'w' in subscriber.subscriptions:
-        mail_from = 'alerts%s-w@students.medschool.pitt.edu' % subscriber.cyear
-        for warning in s.query(NavidileWarning).filter(NavidileWarning.cyear == subscriber.cyear,
-                                                       NavidileWarning.date_added > subscriber.last_update).all():
-            send_out_update(warning.warning, mail_from, subscriber, '[Navidile]: %s' % warning.subject)
-    subscriber.last_update = datetime.datetime.now()
+                updateddocs = s.query(Document)\
+                    .filter(Document.date_added > subscriber.last_update)\
+                    .filter(Document.course_name == course.name)\
+                    .filter(Document.cyear == cyear).all()
+                if course.keep_updated and len(updateddocs) > 0:
+                    message_lines = []
+                    construct_docs_message(message_lines, updateddocs, subscriber)
+                    send_out_update("\n".join(message_lines), mail_from, subscriber,
+                                    '[Navidile] %s: Documents Added' % course.name)
+        if 'w' in subscriber.subscriptions:
+            mail_from = 'alerts%s-w@students.medschool.pitt.edu' % cyear
+            for warning in s.query(NavidileWarning).filter(NavidileWarning.cyear == cyear,
+                                                           NavidileWarning.date_added > subscriber.last_update).all():
+                send_out_update(warning.warning, mail_from, subscriber, '[Navidile]: %s' % warning.subject)
+        subscriber.last_update = datetime.datetime.now()
     s.add(subscriber)
     s.commit()
 
 
 def send_out_update(output, mail_from, subscriber, header):
     email_text = output
+    output += ("\n\nThis is an navidile alert. "
+               "Please visit http://students.medschool.pitt.edu/navidile/alerts.php?id={0} "
+               "to change and or modify your alerts.".format(subscriber.password))
     msg = MIMEText(remove_non_ascii(email_text))
     msg['Subject'] = header
     msg['From'] = mail_from
@@ -926,22 +911,16 @@ def construct_docs_message(messagelines, updateddocs, subscriber):
     messagelines.append("Navidile found these documents updated on Navigator.  "
                         "Make sure you are logged in to Navigator <http://navigator.medschool.pitt.edu>"
                         " to access them. \n")
-    lastfolder = ""
     for doc in updateddocs:
         messagelines.append(
             "-{0} [{1}] <{2}> at {3}".format(remove_non_ascii(doc.doc_name), remove_non_ascii(doc.doc_ext),
                                              doc.full_url,
                                              doc.date_added))
-    messagelines.append(("\nTo unsubscribe to this alert, reply to this email with 'unsubscribe' in"
-                         " the message. Your last update was at {0}.").format(subscriber.last_update))
-
 
 def construct_vids_message(messagelines, updatedrecordings, subscriber):
     messagelines.append("The following lecture(s) were just posted:\n")
     for rec in updatedrecordings:
         messagelines.append("-{0} [{1}] <{2}> at {3}".format(rec.name, 'vid', rec.mediasite_url, rec.date_added))
-    messagelines.append(("\nTo unsubscribe to this alert, reply to this email with 'unsubscribe' in the message. "
-                         " Your last update was at {0}.").format(subscriber.last_update))
 
 
 def construct_html_pagevids_all(msclass):
@@ -1178,7 +1157,6 @@ class Recording(Base):
         self.course_uid = course.unique_id
 
 
-
 class Subscriber(Base):
     __tablename__ = 'subscribers'
 
@@ -1186,12 +1164,23 @@ class Subscriber(Base):
     last_update = Column(DateTime, nullable=True)
     subscriptions = Column(String(14), nullable=True)
     cyear = Column(Integer, nullable=True)
+    password = Column(String(20), nullable=False)
 
     def __init__(self, emailaddress, cyear, subscriptions=""):
         self.email_addr = emailaddress
         self.last_update = datetime.datetime.now()
         self.subscriptions = subscriptions
         self.cyear = cyear
+        self.update_password()
+
+    @staticmethod
+    def random_word(length):
+        import string
+        import random
+        return ''.join(random.choice(string.lowercase) for i in range(length))
+
+    def update_password(self):
+        self.password = Subscriber.random_word(20)
 
 
 class NavidileSettings(Base):
