@@ -101,7 +101,10 @@ def main(_):
                 func_name = 's_'+task.name
                 if func_name in globals():
                     globals()[func_name](task)
-        s.commit()
+                    task.last_ran = datetime.datetime.now()
+                    if task.force_run:
+                        task.force_run = False
+                    s.commit()
 
         time.sleep(15)
 
