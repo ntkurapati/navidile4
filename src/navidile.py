@@ -624,6 +624,9 @@ def send_out_update(output, mail_from, subscriber, header):
                "?pw={0}&alert={1}&action=unsubscribe"
                " to unsubscribe".format(subscriber.password,
                                        mail_from.split('@')[0].replace('alerts', '').replace('-', ':')))
+    email_text += ("\n\nResubscribe link: http://students.medschool.pitt.edu/navidile/navidile_player/alerts.php"
+                   "?pw={0}&alert={1}&action=subscribe"
+                   .format(subscriber.password, mail_from.split('@')[0].replace('alerts', '').replace('-', ':')))
     msg = MIMEText(remove_non_ascii(email_text))
     msg['Subject'] = header
     msg['From'] = mail_from
