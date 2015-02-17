@@ -551,6 +551,10 @@ def make_navidile_player(rec):
     if not rec.podcast_url or rec.podcast_url == "" or ( rec.slide_base_url and rec.navidile_url and  '.html' not in rec.navidile_url):
         return
 
+    if not rec.navidile_date_added:
+        rec.navidile_date_added = datetime.datetime.now()
+
+
     scripturl = 'http://mediasite.medschool.pitt.edu/som_mediasite/FileServer/Presentation/{0}/manifest.js'.format(
         rec.idno)
     refs = []
@@ -593,7 +597,19 @@ def update_subscriber(subscriber):
                     message_lines = []
                     construct_vids_message(message_lines, updatedrecs, subscriber)
                     send_out_update("\n".join(message_lines), mail_from, subscriber,
-                                    '[Navidile] %s: Recordings Added' % course.name)
+                                    '[Navidile] %s: Mediasite Recordings Added' % course.name)
+        if 'n' in subscription:
+            mail_from = 'alerts%s-n@students.medschool.pitt.edu' % cyear
+            for course in s.query(Course).filter(Course.keep_updated == True).all():
+                updatedrecs = s.query(Recording)\
+                    .filter(Recording.navidile_date_added > subscriber.last_update)\
+                    .filter(Recording.course_name == course.name)\
+                    .filter(Recording.cyear == cyear).all()
+                if course.keep_updated and len(updatedrecs) > 0:
+                    message_lines = []
+                    construct_vids_message(message_lines, updatedrecs, subscriber)
+                    send_out_update("\n".join(message_lines), mail_from, subscriber,
+                                    '[Navidile] %s: Navidile Recordings Added' % course.name)
         if 'c' in subscription:
             mail_from = 'alerts%s-c@students.medschool.pitt.edu' % cyear
             for course in s.query(Course).all():
@@ -907,6 +923,11 @@ def construct_vids_message(messagelines, updatedrecordings, subscriber):
         messagelines.append("-{0} [{1}] <{2}> at {3}".format(rec.name, 'vid', rec.mediasite_url, rec.date_added))
 
 
+def construct_navidile_vids_message(messagelines, updatedrecordings, subscriber):
+    messagelines.append("The following lecture(s) were just posted:\n")
+    for rec in updatedrecordings:
+        messagelines.append("-{0} [{1}] <{2}> at {3}".format(rec.name, 'vid', rec.navidile_url, rec.date_added))
+
 def construct_html_pagevids_all(msclass):
     lines = ['<head><META NAME="robots" CONTENT="noindex,nofollow">'
              '<title>Navidile {0}</title></head>\n'.format(msclass.cyear),
@@ -1113,6 +1134,7 @@ class Recording(Base):
     navidile_url = Column(String(225), nullable=True)
     course_name = Column(String(225), nullable=False)
     date_added = Column(DateTime, nullable=False)
+    navidile_date_added = Column(DateTime, nullable=False)
     folder_id = Column(String(225), nullable=True)
     pub_date = Column(String(225), nullable=False)
     cyear = Column(Integer, nullable=False)
