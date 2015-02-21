@@ -920,7 +920,10 @@ def construct_docs_message(messagelines, updateddocs, subscriber):
 def construct_vids_message(messagelines, updatedrecordings, subscriber):
     messagelines.append("The following lecture(s) were just posted:\n")
     for rec in updatedrecordings:
-        messagelines.append("-{0} [{1}] <{2}> at {3}".format(rec.name, 'vid', rec.mediasite_url, rec.date_added))
+        if rec.navidile_url:
+            messagelines.append("-{0} [{1}] <{2}> at {3}".format(rec.name, 'vid', rec.navidile_url, rec.date_added))
+        else:
+            messagelines.append("-{0} [{1}] <{2}> at {3}".format(rec.name, 'vid', rec.mediasite_url, rec.date_added))
 
 
 def construct_navidile_vids_message(messagelines, updatedrecordings, subscriber):
